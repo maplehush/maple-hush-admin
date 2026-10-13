@@ -26,3 +26,8 @@ mybatis-plus:
 logging:
   pattern:
     level: "%5p [traceId=%X{traceId}]"
+maple-hush:
+  auth:
+    bootstrap-enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+    bootstrap-username: ${ADMIN_BOOTSTRAP_USERNAME:admin}
+    jwt-secret: ${AUTH_JWT_SECRET:}

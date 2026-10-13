@@ -13,3 +13,5 @@ spring:
 maple-hush:
   redis:
     key-prefix: ${REDIS_KEY_PREFIX}
+  auth:
+    jwt-secret: ${AUTH_JWT_SECRET}

@@ -13,6 +13,7 @@ import com.maplehush.admin.system.dict.mapper.SysDictItemMapper;
 import com.maplehush.admin.system.dict.mapper.SysDictTypeMapper;
 import com.maplehush.admin.system.role.entity.SysRole;
 import com.maplehush.admin.system.role.mapper.SysRoleMapper;
+import com.maplehush.admin.system.auth.BootstrapGuard;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
@@ -23,12 +24,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Against an isolated, empty MySQL schema; opt in with T03_IT_ENABLED=true. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @EnabledIfEnvironmentVariable(named = "T03_IT_ENABLED", matches = "true")
 class SystemMigrationIT {
+    @MockitoBean private BootstrapGuard bootstrapGuard;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private SysRoleMapper roles;
     @Autowired private SysDictTypeMapper dictTypes;

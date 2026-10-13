@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class,
             HttpMessageNotReadableException.class, IllegalArgumentException.class})
     public ResponseEntity<Result<Void>> handleInvalid(Exception exception) {
-        return ResponseEntity.badRequest().body(Result.fail(ErrorCode.BAD_REQUEST.code(), ErrorCode.BAD_REQUEST.value(), "请求参数不合法"));
+        return ResponseEntity.badRequest().body(Result.fail(ErrorCode.INVALID_ARGUMENT.code(), ErrorCode.INVALID_ARGUMENT.value(), "请求参数无效"));
     }
 
     @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
