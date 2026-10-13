@@ -1,6 +1,6 @@
 # Maple Hush Admin
 
-基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台。当前按[T0～T21 任务索引](./文档/任务拆解/README.md)逐项搭建；T01 在工作区根目录建仓，直接迁入前后端工程并精简其他 UI 应用，后端仍是 Spring Initializr 空工程。
+基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建；T01 在工作区根目录建仓，直接迁入前后端工程并精简其他 UI 应用，后端仍是 Spring Initializr 空工程。
 
 ## 仓库目录
 
@@ -8,9 +8,9 @@
 | --- | --- |
 | [`frontend/`](./frontend/) | Vben workspace；目标应用 `apps/web-antdv-next` |
 | [`backend/`](./backend/) | Java 21 / Spring Boot 4.1.1 原始工程；T02 才改为四模块 |
-| [`文档/`](./文档/index.md) | 架构、规范、接口契约与任务卡 |
+| [`开发文档/`](./开发文档/index.md) | 架构、规范、接口契约与任务卡 |
 
-前端来源：官方 `vbenjs/vue-vben-admin`，T01 用户新提供的提交 `151d80f9e5fb63f2ed8a8c432e1adf2eba253271`；上游 `origin`、迁入过程和验证结果见[T0 记录](./文档/任务拆解/T0-前后端原始工程准备.md#本次执行记录)与[T01 记录](./文档/任务拆解/T01-建仓迁入工程与前端基线.md#本次执行记录)。后端来自 Spring Initializr 官方生成的 `com.maplehush:admin-system-start` 空工程。
+前端来源：官方 `vbenjs/vue-vben-admin`，T01 用户新提供的提交 `151d80f9e5fb63f2ed8a8c432e1adf2eba253271`；上游 `origin`、迁入过程和验证结果见[T0 记录](./开发文档/任务拆解/T0-前后端原始工程准备.md#本次执行记录)与[T01 记录](./开发文档/任务拆解/T01-建仓迁入工程与前端基线.md#本次执行记录)。后端来自 Spring Initializr 官方生成的 `com.maplehush:admin-system-start` 空工程。
 
 ## 当前开发入口
 
@@ -25,11 +25,11 @@ pnpm dev:antdv-next
 
 ## 文档
 
-- [总体架构](./文档/架构设计/总体架构.md)
-- [后端项目结构](./文档/架构设计/后端项目结构.md)
-- [开发规范](./文档/开发规范/后端开发规范.md)
-- [前后端接口契约](./文档/接口契约/前后端接口契约.md)
-- [任务索引](./文档/任务拆解/README.md)和[完整执行流程](./文档/任务拆解/项目搭建与Docker一键部署执行流程.md)
+- [总体架构](./开发文档/架构设计/总体架构.md)
+- [后端项目结构](./开发文档/架构设计/后端项目结构.md)
+- [开发规范](./开发文档/开发规范/后端开发规范.md)
+- [前后端接口契约](./开发文档/接口契约/前后端接口契约.md)
+- [任务索引](./开发文档/任务拆解/README.md)和[完整执行流程](./开发文档/任务拆解/项目搭建与Docker一键部署执行流程.md)
 
 不要提交凭据或将演示账号用于产品部署。构建、数据库和部署状态以每张任务卡的实际执行记录为准。
 
