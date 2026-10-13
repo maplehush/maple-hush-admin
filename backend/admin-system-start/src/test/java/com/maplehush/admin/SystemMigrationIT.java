@@ -40,7 +40,7 @@ class SystemMigrationIT {
 
     @Test
     void migrationAndSeedAreComplete() {
-        assertEquals(2, jdbc.queryForObject(
+        assertEquals(3, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1", Integer.class));
         assertEquals(11, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() "

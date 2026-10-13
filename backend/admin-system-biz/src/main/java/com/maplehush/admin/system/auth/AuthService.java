@@ -2,9 +2,7 @@ package com.maplehush.admin.system.auth;
 
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -13,9 +11,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.json.JsonMapper;
 
-/** T04 登录和首次改密；刷新轮换与退出由 T05 继续实现。 */
+/** 登录和首次改密；普通会话的签发、轮换与撤销由 AuthSessionService 管理。 */
 @Service
 public class AuthService {
     private static final Logger LOG = LoggerFactory.getLogger(AuthService.class);
@@ -25,18 +22,18 @@ public class AuthService {
     private final AuthRedisService redis;
     private final PasswordPolicy passwords;
     private final LoginAudit audit;
-    private final JsonMapper json;
+    private final AuthSessionService sessions;
     private final String dummyPasswordHash;
 
     public AuthService(JdbcTemplate jdbc, PasswordEncoder encoder, AuthTokenService tokens,
-            AuthRedisService redis, PasswordPolicy passwords, LoginAudit audit, JsonMapper json) {
+            AuthRedisService redis, PasswordPolicy passwords, LoginAudit audit, AuthSessionService sessions) {
         this.jdbc = jdbc;
         this.encoder = encoder;
         this.tokens = tokens;
         this.redis = redis;
         this.passwords = passwords;
         this.audit = audit;
-        this.json = json;
+        this.sessions = sessions;
         this.dummyPasswordHash = encoder.encode(UUID.randomUUID().toString());
     }
 
@@ -63,28 +60,11 @@ public class AuthService {
             redis.clearCredentialFailures(username);
             if (user.mustChangePassword()) {
                 audit.record(userId, username, true, "PASSWORD_CHANGE_REQUIRED", ip, userAgent);
-                return new LoginResult(true, null, tokens.issuePasswordChange(user.id(), user.authVersion()), null);
+                return new LoginResult(true, null, tokens.issuePasswordChange(user.id(), user.authVersion()), null, null);
             }
-            String family = UUID.randomUUID().toString();
-            byte[] random = new byte[48];
-            new SecureRandom().nextBytes(random);
-            String refresh = Base64.getUrlEncoder().withoutPadding().encodeToString(random);
-            jdbc.update("INSERT INTO auth_refresh_session (user_id,family_id,token_hash,expire_time) VALUES (?,?,?,?)",
-                    user.id(), family, AuthRedisService.digest(refresh), LocalDateTime.now().plusDays(7));
-            try {
-                List<String> roles = jdbc.queryForList("SELECT r.role_code FROM sys_role r JOIN sys_user_role ur "
-                        + "ON ur.role_id=r.id WHERE ur.user_id=? AND r.status=1", String.class, user.id());
-                String snapshot = json.writeValueAsString(new UserSnapshot(Long.toString(user.id()), user.username(),
-                        user.realName(), user.avatar(), user.introduction(), roles, user.authVersion()));
-                redis.writeSnapshot(user.id(), snapshot);
-                String access = tokens.issueAccess(user.id(), user.authVersion(), family);
-                audit.record(userId, username, true, "OK", ip, userAgent);
-                return new LoginResult(false, access, null, refresh);
-            } catch (RuntimeException exception) {
-                jdbc.update("UPDATE auth_refresh_session SET revoked_time=? WHERE family_id=?",
-                        LocalDateTime.now(), family);
-                throw exception;
-            }
+            AuthSessionService.SessionResult session = sessions.open(user.id(), user.authVersion());
+            audit.record(userId, username, true, "OK", ip, userAgent);
+            return new LoginResult(false, session.accessToken(), null, session.refreshToken(), session.expireTime());
         } catch (BusinessException exception) {
             audit.record(userId, username, false, exception.getErrorCode().value(), ip, userAgent);
             throw exception;
@@ -130,8 +110,6 @@ public class AuthService {
 
     private record User(long id, String username, String realName, String passwordHash, String avatar,
                         String introduction, int status, boolean mustChangePassword, long authVersion) {}
-    private record UserSnapshot(String userId, String username, String realName, String avatar,
-                                String introduction, List<String> roles, long authVersion) {}
     public record LoginResult(boolean passwordChangeRequired, String accessToken,
-                              String passwordChangeToken, String refreshToken) {}
+                              String passwordChangeToken, String refreshToken, LocalDateTime expireTime) {}
 }

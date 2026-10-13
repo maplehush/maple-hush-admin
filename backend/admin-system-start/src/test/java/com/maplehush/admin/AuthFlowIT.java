@@ -85,7 +85,7 @@ class AuthFlowIT {
         assertTrue(firstData.get("passwordChangeRequired").asBoolean());
         assertNotNull(firstData.get("passwordChangeToken"));
         assertFalse(firstData.has("accessToken"));
-        assertTrue(changeLogin.headers().allValues("Set-Cookie").isEmpty());
+        assertFalse(changeLogin.headers().allValues("Set-Cookie").stream().anyMatch(v -> v.startsWith("mh_refresh=")));
         assertNull(redis.opsForValue().get(keys.key("user", Long.toString(userId))));
         String changeToken = firstData.get("passwordChangeToken").asText();
 
@@ -112,7 +112,8 @@ class AuthFlowIT {
         assertFalse(normalData.has("passwordChangeToken"));
         assertEquals(404, send("GET", "/api/not-yet-implemented", null,
                 normalData.get("accessToken").asText()).statusCode());
-        String cookie = normal.headers().firstValue("Set-Cookie").orElseThrow();
+        String cookie = normal.headers().allValues("Set-Cookie").stream()
+                .filter(value -> value.startsWith("mh_refresh=")).findFirst().orElseThrow();
         assertTrue(cookie.contains("HttpOnly"));
         assertTrue(cookie.contains("SameSite=Lax"));
         String refresh = cookie.split(";", 2)[0].substring("mh_refresh=".length());
@@ -196,15 +197,20 @@ class AuthFlowIT {
     void wrongPasswordAndUnknownAccountHaveSamePublicError() throws Exception {
         HttpResponse<String> wrong = send("POST", "/api/auth/login", loginBody(captcha(), "wrong-password"), null);
         Captcha other = captcha();
-        HttpResponse<String> unknown = send("POST", "/api/auth/login",
-                Map.of("username", "missing_" + UUID.randomUUID().toString().substring(0, 8),
-                        "password", "wrong-password", "captchaId", other.id(), "captchaCode", other.answer()), null);
-        assertEquals(401, wrong.statusCode());
-        assertEquals(401, unknown.statusCode());
-        assertEquals(json.readTree(wrong.body()).get("message").asText(),
-                json.readTree(unknown.body()).get("message").asText());
-        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM sys_login_log WHERE username=? AND success=0",
-                Integer.class, username));
+        String missingUsername = "missing_" + UUID.randomUUID().toString().substring(0, 8);
+        try {
+            HttpResponse<String> unknown = send("POST", "/api/auth/login",
+                    Map.of("username", missingUsername,
+                            "password", "wrong-password", "captchaId", other.id(), "captchaCode", other.answer()), null);
+            assertEquals(401, wrong.statusCode());
+            assertEquals(401, unknown.statusCode());
+            assertEquals(json.readTree(wrong.body()).get("message").asText(),
+                    json.readTree(unknown.body()).get("message").asText());
+            assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM sys_login_log WHERE username=? AND success=0",
+                    Integer.class, username));
+        } finally {
+            jdbc.update("DELETE FROM sys_login_log WHERE username=?", missingUsername);
+        }
     }
 
     private Captcha captcha() throws Exception {
@@ -225,6 +231,7 @@ class AuthFlowIT {
     private HttpResponse<String> send(String method, String path, Object body, String token) throws Exception {
         HttpRequest.Builder request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
                 .timeout(Duration.ofSeconds(10));
+        if ("POST".equals(method)) request.header("Origin", "http://127.0.0.1:" + port);
         if (token != null) request.header("Authorization", "Bearer " + token);
         if (body == null) request.method(method, HttpRequest.BodyPublishers.noBody());
         else request.header("Content-Type", "application/json").method(method,

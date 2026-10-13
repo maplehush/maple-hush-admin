@@ -11,5 +11,7 @@ spring:
       timeout: 5s
       password: ${REDIS_PASSWORD:123456}
 maple-hush:
+  auth:
+    allowed-origins: ${AUTH_ALLOWED_ORIGINS:http://localhost:5999,http://127.0.0.1:5999}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:maple_hush_dev}

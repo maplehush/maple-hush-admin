@@ -5,9 +5,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.context.ConfigurableApplicationContext;
 import java.util.Arrays;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /** 后端唯一启动入口。 */
 @SpringBootApplication
+@EnableScheduling
 public class AdminApplication {
     public static void main(String[] args) {
         boolean recovery = Arrays.asList(args).contains("--maple-hush.maintenance.recover-super-admin=true");

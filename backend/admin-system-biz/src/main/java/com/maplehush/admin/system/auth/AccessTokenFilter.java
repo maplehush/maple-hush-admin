@@ -25,6 +25,12 @@ public class AccessTokenFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return java.util.Set.of("/api/auth/refresh", "/api/auth/logout", "/api/auth/csrf")
+                .contains(request.getServletPath());
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
             FilterChain chain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
@@ -34,8 +40,8 @@ public class AccessTokenFilter extends OncePerRequestFilter {
                 List<Long> versions = jdbc.queryForList("SELECT auth_version FROM sys_user WHERE id=? AND status=1 "
                         + "AND must_change_password=0", Long.class, claims.userId());
                 Integer sessions = jdbc.queryForObject("SELECT COUNT(*) FROM auth_refresh_session WHERE user_id=? "
-                        + "AND family_id=? AND used_time IS NULL AND revoked_time IS NULL AND expire_time>?", Integer.class,
-                        claims.userId(), claims.familyId(), LocalDateTime.now());
+                        + "AND family_id=? AND auth_version=? AND used_time IS NULL AND revoked_time IS NULL AND expire_time>?", Integer.class,
+                        claims.userId(), claims.familyId(), claims.authVersion(), LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
                 if (versions.size() == 1 && versions.getFirst() == claims.authVersion() && sessions != null
                         && sessions > 0) {
                     SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
