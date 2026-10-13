@@ -1,6 +1,6 @@
 # Redis 与环境配置设计
 
-> 2026-10-12 定稿；2026-10-13 核对 T02 实现。Redis 连接、键前缀和健康检查已落地，业务用途由 T04～T06 实现。
+> 2026-10-12 定稿；2026-10-13 核对 T02/T03 实现。Redis 连接、键前缀和健康检查已落地，业务用途由 T04～T06 实现。
 
 ## 首版职责
 
@@ -22,7 +22,7 @@ Redis 故障时，验证码签发/校验、登录及限流不可跳过，应返�
 
 ## 配置文件与连接位置
 
-`admin-system-start/src/main/resources/` 规划四个文件：
+`admin-system-start/src/main/resources/` 已有四个文件：
 
 | 文件 | 用途 | MySQL/Redis 主机 |
 | --- | --- | --- |
@@ -31,12 +31,12 @@ Redis 故障时，验证码签发/校验、登录及限流不可跳过，应返�
 | `application-test.yml` | 集成测试、共享测试及预发布环境 | 测试环境显式注入地址与凭据，不回退到开发或生产地址 |
 | `application-prod.yml` | 生产部署 | 生产环境显式注入实际地址与凭据 |
 
-显式使用 `SPRING_PROFILES_ACTIVE=dev|test|prod` 或等价启动参数选择环境，不在某个 profile 文件中设置 `spring.profiles.active`。`dev` 表示开发阶段，不区分宿主机和容器；连接地址由环境变量决定。`test` 使用独立测试数据和 Redis 命名空间，禁止连接生产服务。正式默认数据库名保持 `maple_hush_admin`，此默认值只写在 `dev` 示例中；`test` 和 `prod` 显式提供各自库名。用户给出的 `maple-hush` 仅为连接示例，不改正式库名。以下是 `application-dev.yml` 的非敏感示意，正式变量名和密钥文件读取方式在 T02/T18 落地核对：
+显式使用 `SPRING_PROFILES_ACTIVE=dev|test|prod` 或等价启动参数选择环境，不在某个 profile 文件中设置 `spring.profiles.active`。`dev` 表示开发阶段，不区分宿主机和容器；连接地址由环境变量决定。`test` 使用独立测试数据和 Redis 命名空间，禁止连接生产服务。正式默认数据库名保持 `maple_hush_admin`，此默认值只写在 `dev` 示例中；`test` 和 `prod` 显式提供各自库名。用户给出的 `maple-hush` 仅为连接示例，不改正式库名。以下是 `application-dev.yml` 的非敏感示意；T18 核对部署密钥注入方式：
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:maple_hush_admin}?useUnicode=true&characterEncoding=utf8&connectionTimeZone=Asia/Shanghai
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:maple_hush_admin}?useUnicode=true&characterEncoding=utf8&connectionTimeZone=%2B08:00&forceConnectionTimeZoneToSession=true
     username: ${MYSQL_USERNAME}
     password: ${MYSQL_PASSWORD}
   data:
@@ -50,7 +50,7 @@ spring:
 
 开发者在宿主机启动时直接使用 `dev` 的 `127.0.0.1` 默认地址；开发 Compose 启动时为后端注入 `MYSQL_HOST=mysql`、`REDIS_HOST=redis`，仍激活 `dev`。不要在宿主机直启时使用只能在 Compose 网络解析的服务名。`test` 和 `prod` 不配置开发地址兜底，地址、库名、Redis 数据库/键前缀与密码均由各环境显式提供；测试环境的数据和 Redis 键与开发、生产隔离。开发环境 MySQL 和 Redis 的实际密码均按用户约定设为 `123456`，只放在被 Git 忽略的本地 `.env`、IDE 环境变量或受控密钥文件中；提交的 YAML 和 `.env.example` 只写变量引用或变量名，不写密码值。测试和生产使用各自独立的受控密码，不沿用开发密码。Redis 端口不对公网发布，开发 Compose 中若供宿主机访问，仅绑定回环地址。
 
-`connectionTimeZone`（旧别名 `serverTimezone`）本身不保证 MySQL 会话时区为东八区。T03 继续验证 `@@session.time_zone`、`CURRENT_TIMESTAMP` 和应用读写往返；如需统一会话时区，通过数据库配置或经验证的 Connector/J 参数实现，不仅凭 JDBC URL 判断。
+`connectionTimeZone`（旧别名 `serverTimezone`）本身不保证 MySQL 会话时区为东八区，因此 T03 增加 `forceConnectionTimeZoneToSession=true`，使用 URL 编码的 `%2B08:00`。本机 MySQL 8.0.24 没有命名时区表，直接要求 `Asia/Shanghai` 会报 1298；固定偏移可连接。T03 的真实数据库集成测试确认 `@@session.time_zone` 为 `+08:00`，`CURRENT_TIMESTAMP` 与应用读写符合东八区秒级约定。目标 MySQL 8.4 环境仍需复验。
 
 ## OSS 头像配置
 
