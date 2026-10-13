@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: maple-hush-admin
+  jackson:
+    time-zone: Asia/Shanghai
+  mvc:
+    problemdetails:
+      enabled: false
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis
+  endpoints:
+    web:
+      exposure:
+        include: health
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId}]"

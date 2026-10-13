@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:maple_hush_admin}?useUnicode=true&characterEncoding=utf8&connectionTimeZone=Asia/Shanghai
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      database: ${REDIS_DATABASE:0}
+      timeout: 5s
+      password: ${REDIS_PASSWORD}
+maple-hush:
+  redis:
+    key-prefix: ${REDIS_KEY_PREFIX:maple_hush_dev}
