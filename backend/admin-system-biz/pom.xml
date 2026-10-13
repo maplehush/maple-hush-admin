@@ -6,5 +6,7 @@
   <dependencies>
     <dependency><groupId>com.maplehush</groupId><artifactId>admin-base-core</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.maplehush</groupId><artifactId>admin-system-api</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><scope>provided</scope></dependency>
+    <dependency><groupId>cn.hutool</groupId><artifactId>hutool-captcha</artifactId></dependency>
   </dependencies>
 </project>
