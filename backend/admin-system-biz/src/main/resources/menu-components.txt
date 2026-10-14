@@ -1,0 +1,14 @@
+# Page keys allowed in system menus. Keep in sync when adding real views in T14/T15.
+# The seven system keys are reserved by V2; their pages are not implemented yet.
+/system/user/list
+/system/role/list
+/system/menu/list
+/system/dept/list
+/system/dict/list
+/system/login-log/list
+/system/operation-log/list
+/dashboard/workspace/index
+/dashboard/analytics/index
+/_core/profile/index
+/_core/about/index
+/demos/antd/index

@@ -79,6 +79,7 @@ T05 新增 `AUTH_ALLOWED_ORIGINS`，生产/测试须显式配置逗号分隔的�
 - T04：Redis 验证码、原子消费、验证码/登录限流，以及正常登录的最小用户快照。
 - T05：MySQL refresh 会话的轮换/撤销与 Redis 快照失效协同。
 - T06：`/api/user/info` 使用快照读路径，账号和授权状态仍经 MySQL 校验；授权变化后按 `authVersion` 失效。
+- T07：菜单增改删已在同一业务事务递增所有已分配角色用户版本，提交后删除快照；包括操作者的旧令牌失效，缓存清理失败不会恢复旧授权。
 - T17：真实 MySQL/Redis 集成测试激活 `test`，使用隔离的测试库和 Redis 键前缀；预发布也用 `test`，生产才用 `prod`。
 - T18/T20/T21：后端 Compose 增加 `redis` 服务；根编排共 `frontend/backend/mysql/redis` 四服务，开发部署激活 `dev` 并注入 Compose 服务名，预发布激活 `test`，生产激活 `prod`。验证依赖健康、重启与缓存重建。Redis 是可重建的缓存，持久业务数据仍以 MySQL 备份为准。
 

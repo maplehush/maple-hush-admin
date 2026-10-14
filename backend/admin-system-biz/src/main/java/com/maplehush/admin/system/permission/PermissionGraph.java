@@ -92,7 +92,8 @@ public class PermissionGraph {
         return List.copyOf(result);
     }
 
-    private Map<String, Object> metadata(SysMenu menu) {
+    /** 从独立列与安全扩展字段组装两类菜单共用的显示元数据。 */
+    public Map<String, Object> metadata(SysMenu menu) {
         Map<String, Object> meta = new LinkedHashMap<>();
         if (menu.getMetaJson() != null) {
             try {
