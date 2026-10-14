@@ -1,6 +1,7 @@
 package com.maplehush.admin.system.user.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.maplehush.admin.common.entity.BaseEntity;
@@ -39,6 +40,7 @@ public class SysUser extends BaseEntity {
     /**
      * BCrypt 密码哈希；禁止返回客户端或写入日志
      */
+    @TableField(select = false)
     private String password;
 
     /**
