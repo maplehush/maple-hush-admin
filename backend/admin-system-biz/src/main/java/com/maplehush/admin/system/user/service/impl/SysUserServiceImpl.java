@@ -8,6 +8,7 @@ import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.system.auth.support.PasswordPolicy;
 import com.maplehush.admin.system.dept.mapper.SysDeptMapper;
+import com.maplehush.admin.system.file.service.IFileUploadService;
 import com.maplehush.admin.system.menu.vo.MenuRouteVO;
 import com.maplehush.admin.system.permission.mapper.PermissionMapper;
 import com.maplehush.admin.system.permission.service.IAuthorizationChangeService;
@@ -51,6 +52,7 @@ public class SysUserServiceImpl implements ISysUserService {
     private final IPermissionService permissions;
     private final IAuthorizationChangeService changes;
     private final PasswordEncoder passwords;
+    private final IFileUploadService files;
 
     public SysUserServiceImpl(
             SysUserMapper mapper,
@@ -61,7 +63,8 @@ public class SysUserServiceImpl implements ISysUserService {
             PermissionMapper permissionMapper,
             IPermissionService permissions,
             IAuthorizationChangeService changes,
-            PasswordEncoder passwords) {
+            PasswordEncoder passwords,
+            IFileUploadService files) {
         this.mapper = mapper;
         this.relations = relations;
         this.roles = roles;
@@ -71,6 +74,7 @@ public class SysUserServiceImpl implements ISysUserService {
         this.permissions = permissions;
         this.changes = changes;
         this.passwords = passwords;
+        this.files = files;
     }
 
     @Transactional(readOnly = true)
@@ -82,6 +86,7 @@ public class SysUserServiceImpl implements ISysUserService {
                         .select(
                                 SysUser::getId,
                                 SysUser::getUsername,
+                                SysUser::getAvatarUrl,
                                 SysUser::getRealName,
                                 SysUser::getDeptId,
                                 SysUser::getStatus,
@@ -129,6 +134,10 @@ public class SysUserServiceImpl implements ISysUserService {
                         dto.deptId(),
                         dto.status() == null ? 1 : dto.status(),
                         dto.remark());
+        if (dto.avatarUploadId() != null) {
+            user.setAvatarUrl(
+                    files.resolveImage(dto.avatarUploadId(), permissions.current().user().getId()));
+        }
         user.setUsername(dto.username().strip());
         user.setPassword(passwords.encode(PasswordPolicy.TEMPORARY_PASSWORD));
         user.setMustChangePassword(true);
@@ -168,6 +177,13 @@ public class SysUserServiceImpl implements ISysUserService {
             }
         } catch (DataIntegrityViolationException exception) {
             throw conflict();
+        }
+        if (dto.avatarUploadId() != null) {
+            String avatar =
+                    files.resolveImage(dto.avatarUploadId(), permissions.current().user().getId());
+            if (mapper.updateOwnAvatar(id, avatar) != 1) {
+                throw notFound();
+            }
         }
         if (changed) {
             invalidateSessions(id);
@@ -394,6 +410,7 @@ public class SysUserServiceImpl implements ISysUserService {
         return new SysUserVO(
                 user.getId().toString(),
                 user.getUsername(),
+                user.getAvatarUrl(),
                 user.getRealName(),
                 user.getDeptId() == null ? null : user.getDeptId().toString(),
                 roles.stream().sorted().map(String::valueOf).toList(),

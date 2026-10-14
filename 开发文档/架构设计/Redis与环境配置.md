@@ -97,3 +97,7 @@ T05 新增 `AUTH_ALLOWED_ORIGINS`，生产/测试须显式配置逗号分隔的�
 multipart 单文件 2MB、整请求 3MB；图片解码后重编码 PNG、宽高和像素限制见[T13 契约](../接口契约/前后端接口契约.md#t13-本人资料改密与头像实施细节)。客户端原始文件名/MIME 不参与路径和内容类型裁定。上传需 Bucket public-read 与 GetBucketAcl/前缀 PutObject/DeleteObject 权限，不自动调整 ACL。按用户指令，真实上传/匿名可读不可写由用户后续验证。
 
 Redis 新增命名空间 `{key-prefix}:password_change:{userId}`，使用既有原子计数与过期脚本，每 5 分钟最多 5 次进入本人改密 Service 的请求；Redis 故障不绕过。本人资料/头像提交后清快照且读时与 MySQL 资料核对；本人改密还递增授权版本、撤销全部会话。
+
+### T13 统一文件上传凭据
+
+Redis 使用 `{key-prefix}:file_upload:{uploadId}` 保存随机标识对应的上传人 ID 和服务端生成 URL，TTL 为 2 小时；只由后端签发和读取，管理表单不能提交任意 URL。凭据不消费以支持提交失败重试，同一上传人可在有效期内复用素材；过期需重新上传，但不会删除已经交付的通用素材。公开素材目录为 `vben-admin-img/files/{上传人ID}/{随机名}.png`，继承现有 OSS 配置；该目录不允许直接配置到期删除生命周期，避免已绑定业务头像失效。

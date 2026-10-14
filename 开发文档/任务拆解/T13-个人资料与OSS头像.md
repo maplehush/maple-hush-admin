@@ -40,3 +40,23 @@
 - 现有前端 dist 共 220 个文件，未发现 VITE_OSS_ACCESS_KEY_ID/VITE_OSS_ACCESS_KEY_SECRET 标记或 AccessKey ID 模式；这是既有产物检查，本轮未运行新的前端构建。WebP 测试素材取自 TwelveMonkeys 官方测试资源，并附上游许可和来源。
 - 160 个 Java 源文件的大括号检查遗漏 0，git diff --check 通过；独立只读审查未发现需要修复的具体缺陷。已同步接口契约、架构/结构/配置、任务索引、交接和工作指引。用户原有根 POM 与前端 preferences.ts 改动保留，不纳入本次提交。
 - 下一步 T14 前端登录与动态权限，由用户另行发起；T13 真实 OSS 上传由用户后续测试。
+
+## T13 补充：统一文件上传（2026-10-14）
+
+用户要求补齐统一文件上传入口，供后续 Vben 新增用户上传头像。采用 `system/file` 功能包和 `POST /api/files/upload`，底层复用 common/storage；本人头像入口仍负责立即绑定本人，统一入口只上传并签发可验证的上传标识，不修改当前用户。
+
+首版类型白名单与既定范围一致，仅 JPEG/PNG/WebP 公开图片，实际解码后转 PNG；其他文件按未来业务白名单和公开/私有访问需求扩展，不把所有文件默认暴露到当前公开头像 Bucket。返回 uploadId/name/url/contentType/size；上传标识在 Redis 保存 2 小时、绑定上传人，新增/修改用户只接收 avatarUploadId，不接收任意 URL。上传成功不代表用户表单成功，表单失败后标识在有效期内可重试、素材可复用，不因某次绑定失败删除已交付的通用素材；首版无通用素材删除/文件管理页面。未使用素材的清理需通过后续素材管理/引用策略扩展，不能对当前 files/ 前缀直接设置到期删除，避免误删已绑定头像。
+
+步骤：先新增真实接口测试观察缺失失败；抽取共享图片校验、实现统一文件 Service/Controller 和 Redis 上传凭据；补用户创建/修改字段与安全输出，验证归属、过期和失败处理；全量回归、独立审查后同步文档并提交。既有个人中心接口和 T14 边界保持一致。
+
+补充实现进度：统一入口、共享图片校验及用户表单头像绑定已完成。RED 的 7 个专项均因缺失接口返回 404 失败；实现后 FileUploadIT 的 7 例与原 ProfileManagementIT 的 12 例全部通过，BUILD SUCCESS。全量回归与独立审查均已完成，记录见下。
+
+## 统一上传补充执行记录（2026-10-14）
+
+- [x] 新增 POST /api/files/upload，位于 system/file，底层复用 common/storage。首版公开图片白名单、真实解码与 PNG 净化、单文件与尺寸限制均与本人头像共享；原个人中心接口保留。
+- [x] 统一返回 uploadId/name/url/contentType/size，Redis 上传凭据保存 2 小时并绑定上传人；凭据写失败补偿刚上传的新对象。用户创建/修改增加 avatarUploadId，原权限与事务边界内校验后写 avatar_url，管理详情/列表返回 avatar。未知/过期标识 400、他人标识 403，不接收任意头像 URL。
+- [x] FileUploadIT 新增 7 个真实 HTTP/MySQL/Redis 用例：完成测试断言修正后的 RED 为 7 个缺失端点 404 失败、错误 0；实现后 7 例与原 ProfileManagementIT 的 12 例同时通过。新增单元测试验证 Redis 凭据写失败会删除本次对象并返回依赖不可用。
+- [x] 全量设置 T04_IT_ENABLED～T13_IT_ENABLED=true、T13_FILE_IT_ENABLED=true、MYSQL_DATABASE=maple_hush_admin，执行 `.\mvnw.cmd -ntp clean verify`。2026-10-14 15:30:55 完成，五个 reactor SUCCESS、BUILD SUCCESS；34 个单元测试与 96 个真实本地集成测试通过，3 个 T03 专项按开关跳过（Failsafe 合计 99，失败 0、错误 0）。168 个 Java 源文件大括号检查遗漏 0，git diff --check 通过；独立只读审查未发现具体可操作缺陷。
+- 环境仍为 Java 21、本机 MySQL 8.0.24 与 Redis 3.0.504。OSS 使用测试替身，真实上传由用户后续验证；未执行新的前端构建、浏览器或 Docker 部署。没有新增依赖、表或迁移。
+- 生命周期裁定已写入接口契约与总体架构：通用素材可复用，凭据过期/表单失败不自动删除，首版无文件引用或删除管理；不对 files/ 目录设置到期删除策略，后续清理须先引入引用管理以免误删。前端新增/编辑用户上传流程放在 T15，其前置同步包含 T13；没有提前实施 T14/T15 页面。
+- 同步开发文档、工作指引与交接记录。原有 backend/pom.xml 和前端 preferences.ts 改动保留且不纳入提交。下一步仍为 T14。

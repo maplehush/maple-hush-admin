@@ -8,6 +8,7 @@ import java.util.List;
  *
  * @param id 用户 ID，使用字符串避免前端精度丢失
  * @param username 不可变的登录账号
+ * @param avatar 可空的长期公开头像 URL
  * @param name 用户姓名，对应 real_name
  * @param deptId 所属部门 ID；未分配时为空
  * @param roleIds 已关联角色 ID；包括停用角色供管理页识别
@@ -19,6 +20,7 @@ import java.util.List;
 public record SysUserVO(
         String id,
         String username,
+        String avatar,
         String name,
         String deptId,
         List<String> roleIds,
