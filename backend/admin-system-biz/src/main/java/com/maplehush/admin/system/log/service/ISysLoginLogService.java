@@ -1,7 +1,7 @@
 package com.maplehush.admin.system.log.service;
 
 /**
- * SysLoginLogService 业务接口
+ * 登录、退出和刷新安全事件审计
  */
 public interface ISysLoginLogService {
     /**
@@ -41,4 +41,10 @@ public interface ISysLoginLogService {
             String reason,
             String ip,
             String userAgent);
+
+    /**
+     * 获取进程内登录审计失败计数，与错误日志一起供监控读取
+     * @return 累计写入失败次数
+     */
+    long failureCount();
 }

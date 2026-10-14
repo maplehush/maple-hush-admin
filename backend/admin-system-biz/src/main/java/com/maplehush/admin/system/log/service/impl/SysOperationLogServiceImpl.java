@@ -34,17 +34,18 @@ public class SysOperationLogServiceImpl implements ISysOperationLogService {
         try {
             transactions.executeWithoutResult(
                     status -> {
-                        if (mapper.save(entry) != 1) {
+                        if (mapper.save(entry.outcome(entry.success())) != 1) {
                             throw new IllegalStateException("Operation audit was not inserted");
                         }
                     });
         } catch (RuntimeException exception) {
             failures.incrementAndGet();
             LOG.error(
-                    "Operation audit write failed operation={} traceId={}",
+                    "Operation audit write failed operation={} traceId={} failureCount={} errorType={}",
                     entry.operationCode(),
                     entry.traceId(),
-                    exception);
+                    failures.get(),
+                    exception.getClass().getSimpleName());
         }
     }
 

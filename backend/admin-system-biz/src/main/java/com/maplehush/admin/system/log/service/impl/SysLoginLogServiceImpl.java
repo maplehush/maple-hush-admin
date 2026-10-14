@@ -11,12 +11,15 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * 登录审计只保存账号、结果和原因码，不保存凭据或验证码
  */
 @Service
 public class SysLoginLogServiceImpl implements ISysLoginLogService {
     private static final Logger LOG = LoggerFactory.getLogger(SysLoginLogServiceImpl.class);
+    private final AtomicLong failures = new AtomicLong();
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transactions;
 
@@ -62,8 +65,18 @@ public class SysLoginLogServiceImpl implements ISysLoginLogService {
                                     limited(userAgent, 512),
                                     MDC.get("traceId")));
         } catch (RuntimeException exception) {
-            LOG.error("Login audit write failed", exception);
+            failures.incrementAndGet();
+            LOG.error(
+                    "Login audit write failed traceId={} failureCount={} errorType={}",
+                    MDC.get("traceId"),
+                    failures.get(),
+                    exception.getClass().getSimpleName());
         }
+    }
+
+    @Override
+    public long failureCount() {
+        return failures.get();
     }
 
     private static String limited(String value, int max) {

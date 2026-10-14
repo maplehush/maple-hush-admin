@@ -85,3 +85,7 @@ T05 新增 `AUTH_ALLOWED_ORIGINS`，生产/测试须显式配置逗号分隔的�
 - T18/T20/T21：后端 Compose 增加 `redis` 服务；根编排共 `frontend/backend/mysql/redis` 四服务，开发部署激活 `dev` 并注入 Compose 服务名，预发布激活 `test`，生产激活 `prod`。验证依赖健康、重启与缓存重建。Redis 是可重建的缓存，持久业务数据仍以 MySQL 备份为准。
 
 参考：[Spring Boot Redis 配置](https://docs.spring.io/spring-boot/reference/data/nosql.html)、[Spring Boot Profiles](https://docs.spring.io/spring-boot/reference/features/profiles.html)、[Docker Compose 服务发现](https://docs.docker.com/compose/how-tos/networking/)、[Connector/J 时区属性](https://dev.mysql.com/doc/connector-j/en/connector-j-connp-props-datetime-types-processing.html)。
+
+## T12 日志保留配置
+
+共享 application.yml 已增加 `maple-hush.log`，不依赖 Redis 保存审计或清理状态。`LOG_LOGIN_RETENTION_DAYS` 默认 90、`LOG_OPERATION_RETENTION_DAYS` 默认 180，均校验 1～3650 天；`LOG_CLEANUP_ENABLED` 默认 true，`LOG_CLEANUP_DELAY_MS` 默认 3600000，设为正的调度间隔毫秒数。各环境可覆盖这些非敏感配置；关闭清理不影响日志写入或查询。严格截止点、每批上限和故障处理见[总体架构的 T12 保留策略](./总体架构.md#t12-日志查询与保留清理)。审计失败通过固定 ERROR 事件及进程内计数观察，部署告警接入在后续运维任务验证。
