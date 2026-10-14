@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,6 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Cookie 会话写接口启用 Spring Security CSRF，Bearer 接口单独验证身份。 */
 @Configuration
+@EnableMethodSecurity
 public class AuthSecurityConfiguration {
     @Bean
     PasswordEncoder passwordEncoder() {

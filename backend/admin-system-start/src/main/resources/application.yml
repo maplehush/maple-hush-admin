@@ -34,3 +34,4 @@ maple-hush:
     allowed-origins: ${AUTH_ALLOWED_ORIGINS:}
     session-retention-days: ${AUTH_SESSION_RETENTION_DAYS:7}
     session-cleanup-delay-ms: ${AUTH_SESSION_CLEANUP_DELAY_MS:3600000}
+    user-snapshot-ttl-seconds: ${AUTH_USER_SNAPSHOT_TTL_SECONDS:600}

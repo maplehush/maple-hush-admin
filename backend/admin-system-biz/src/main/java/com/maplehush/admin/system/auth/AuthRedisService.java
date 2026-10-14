@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -27,11 +28,15 @@ public class AuthRedisService {
             "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]); end; return n", Long.class);
     private final RedisTemplate<String, String> redis;
     private final RedisKeyBuilder keys;
+    private final Duration snapshotTtl;
 
     public AuthRedisService(@Qualifier("stringValueRedisTemplate") RedisTemplate<String, String> redis,
-                            RedisKeyBuilder keys) {
+                            RedisKeyBuilder keys,
+                            @Value("${maple-hush.auth.user-snapshot-ttl-seconds:600}") long snapshotTtlSeconds) {
+        if (snapshotTtlSeconds < 1 || snapshotTtlSeconds > 86400) throw new IllegalArgumentException("用户快照 TTL 须为 1 至 86400 秒");
         this.redis = redis;
         this.keys = keys;
+        this.snapshotTtl = Duration.ofSeconds(snapshotTtlSeconds);
     }
 
     public Captcha issueCaptcha(String ip) {
@@ -93,9 +98,17 @@ public class AuthRedisService {
         }
     }
 
+    public String readSnapshot(long userId) {
+        try {
+            return redis.opsForValue().get(keys.key("user", Long.toString(userId)));
+        } catch (RuntimeException exception) {
+            throw unavailable(exception);
+        }
+    }
+
     public void writeSnapshot(long userId, String json) {
         try {
-            redis.opsForValue().set(keys.key("user", Long.toString(userId)), json, Duration.ofMinutes(10));
+            redis.opsForValue().set(keys.key("user", Long.toString(userId)), json, snapshotTtl);
         } catch (RuntimeException exception) {
             throw unavailable(exception);
         }

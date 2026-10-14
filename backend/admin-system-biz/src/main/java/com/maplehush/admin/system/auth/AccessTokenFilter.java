@@ -6,7 +6,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.List;
+import com.maplehush.admin.system.permission.PermissionService;
+import com.maplehush.admin.system.permission.mapper.PermissionMapper;
+import com.maplehush.admin.system.user.entity.SysUser;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,10 +21,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class AccessTokenFilter extends OncePerRequestFilter {
     private final AuthTokenService tokens;
     private final JdbcTemplate jdbc;
+    private final PermissionMapper users;
+    private final PermissionService permissions;
 
-    public AccessTokenFilter(AuthTokenService tokens, JdbcTemplate jdbc) {
+    public AccessTokenFilter(AuthTokenService tokens, JdbcTemplate jdbc, PermissionMapper users, PermissionService permissions) {
         this.tokens = tokens;
         this.jdbc = jdbc;
+        this.users = users;
+        this.permissions = permissions;
     }
 
     @Override
@@ -37,15 +44,18 @@ public class AccessTokenFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             try {
                 AuthTokenService.Claims claims = tokens.verifyAccess(header.substring(7));
-                List<Long> versions = jdbc.queryForList("SELECT auth_version FROM sys_user WHERE id=? AND status=1 "
-                        + "AND must_change_password=0", Long.class, claims.userId());
+                SysUser user = users.getUser(claims.userId());
                 Integer sessions = jdbc.queryForObject("SELECT COUNT(*) FROM auth_refresh_session WHERE user_id=? "
                         + "AND family_id=? AND auth_version=? AND used_time IS NULL AND revoked_time IS NULL AND expire_time>?", Integer.class,
                         claims.userId(), claims.familyId(), claims.authVersion(), LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")));
-                if (versions.size() == 1 && versions.getFirst() == claims.authVersion() && sessions != null
+                if (user != null && Integer.valueOf(1).equals(user.getStatus()) && !Boolean.TRUE.equals(user.getMustChangePassword())
+                        && user.getAuthVersion() == claims.authVersion() && sessions != null
                         && sessions > 0) {
-                    SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                            claims.userId(), null, List.of()));
+                    PermissionService.Context context = permissions.load(user);
+                    var authentication = new UsernamePasswordAuthenticationToken(claims.userId(), null,
+                            context.permissions().codes().stream().sorted().map(SimpleGrantedAuthority::new).toList());
+                    authentication.setDetails(context);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (IllegalArgumentException ignored) {
                 SecurityContextHolder.clearContext();

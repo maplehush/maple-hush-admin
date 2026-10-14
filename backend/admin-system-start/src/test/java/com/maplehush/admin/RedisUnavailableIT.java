@@ -27,6 +27,7 @@ class RedisUnavailableIT {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PasswordEncoder passwords;
+    @Autowired private com.maplehush.admin.system.auth.AuthTokenService tokens;
 
     @Test
     void captchaAndLoginFailClosed() throws Exception {
@@ -60,11 +61,17 @@ class RedisUnavailableIT {
             String raw = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[48]);
             String hash = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
                     .digest(raw.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            String family = java.util.UUID.randomUUID().toString();
             jdbc.update("INSERT INTO auth_refresh_session (user_id,auth_version,family_id,token_hash,expire_time) VALUES (?,0,?,?,?)",
-                    userId, java.util.UUID.randomUUID().toString(), hash,
+                    userId, family, hash,
                     java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")).plusDays(1));
             HttpClient client = HttpClient.newHttpClient();
             String base = "http://127.0.0.1:" + port;
+            String access = tokens.issueAccess(userId, 0, family);
+            var info = client.send(HttpRequest.newBuilder(URI.create(base + "/api/user/info"))
+                    .header("Authorization", "Bearer " + access).GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, info.statusCode(), info.body());
+            assertEquals(username, json.readTree(info.body()).get("data").get("username").asString());
             var csrf = client.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/csrf")).GET().build(), HttpResponse.BodyHandlers.ofString());
             String token = json.readTree(csrf.body()).get("data").get("token").asString();
             String cookie = csrf.headers().allValues("Set-Cookie").stream().filter(v -> v.startsWith("mh_csrf=")).findFirst().orElseThrow().split(";", 2)[0];

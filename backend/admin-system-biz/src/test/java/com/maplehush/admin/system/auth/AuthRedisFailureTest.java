@@ -22,7 +22,7 @@ class AuthRedisFailureTest {
             template.setKeySerializer(new StringRedisSerializer());
             template.setValueSerializer(new StringRedisSerializer());
             template.afterPropertiesSet();
-            AuthRedisService service = new AuthRedisService(template, new RedisKeyBuilder("t04_failure"));
+            AuthRedisService service = new AuthRedisService(template, new RedisKeyBuilder("t04_failure"), 600);
             BusinessException captcha = assertThrows(BusinessException.class, () -> service.issueCaptcha("127.0.0.1"));
             assertEquals(ErrorCode.DEPENDENCY_UNAVAILABLE, captcha.getErrorCode());
             BusinessException login = assertThrows(BusinessException.class,
