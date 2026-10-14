@@ -2,6 +2,7 @@ package com.maplehush.admin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.maplehush.admin.system.auth.security.token.AuthTokenService;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,13 +10,13 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.ActiveProfiles;
-import tools.jackson.databind.json.JsonMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
+import tools.jackson.databind.json.JsonMapper;
 
 /** Redis 故障时验证码与登录都返回 503，不能绕过校验。 */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -27,7 +28,7 @@ class RedisUnavailableIT {
     @Autowired private JsonMapper json;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PasswordEncoder passwords;
-    @Autowired private com.maplehush.admin.system.auth.AuthTokenService tokens;
+    @Autowired private com.maplehush.admin.system.auth.security.token.AuthTokenService tokens;
 
     @Test
     void captchaAndLoginFailClosed() throws Exception {

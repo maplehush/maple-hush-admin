@@ -2,7 +2,7 @@ package com.maplehush.admin.system.menu.controller;
 
 import com.maplehush.admin.common.api.Result;
 import com.maplehush.admin.system.menu.dto.SysMenuSaveDTO;
-import com.maplehush.admin.system.menu.service.SysMenuService;
+import com.maplehush.admin.system.menu.service.ISysMenuService;
 import com.maplehush.admin.system.menu.support.SysMenuRules;
 import com.maplehush.admin.system.menu.vo.SysMenuVO;
 import jakarta.validation.Valid;
@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/system/menu")
 public class SysMenuController {
-    private final SysMenuService service;
-    public SysMenuController(SysMenuService service) { this.service = service; }
+    private final ISysMenuService service;
+    public SysMenuController(ISysMenuService service) { this.service = service; }
 
     @GetMapping("/list") @PreAuthorize("hasAuthority('system:menu:list')")
     public Result<List<SysMenuVO>> list() { return Result.ok(service.listMenus()); }

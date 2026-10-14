@@ -2,7 +2,7 @@ package com.maplehush.admin.system.dept.controller;
 
 import com.maplehush.admin.common.api.Result;
 import com.maplehush.admin.system.dept.dto.SysDeptSaveDTO;
-import com.maplehush.admin.system.dept.service.SysDeptService;
+import com.maplehush.admin.system.dept.service.ISysDeptService;
 import com.maplehush.admin.system.dept.support.SysDeptTree;
 import com.maplehush.admin.system.dept.vo.SysDeptVO;
 import jakarta.validation.Valid;
@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/system/dept")
 public class SysDeptController {
-    private final SysDeptService service;
-    public SysDeptController(SysDeptService service) { this.service = service; }
+    private final ISysDeptService service;
+    public SysDeptController(ISysDeptService service) { this.service = service; }
 
     @GetMapping("/list") @PreAuthorize("hasAuthority('system:dept:list')")
     public Result<List<SysDeptVO>> list() { return Result.ok(service.listDepts()); }

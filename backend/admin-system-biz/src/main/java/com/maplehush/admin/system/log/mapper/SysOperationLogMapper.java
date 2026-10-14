@@ -1,6 +1,6 @@
 package com.maplehush.admin.system.log.mapper;
 
-import com.maplehush.admin.system.log.service.SysOperationLogService.Entry;
+import com.maplehush.admin.system.log.service.ISysOperationLogService.Entry;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 

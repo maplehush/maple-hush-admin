@@ -3,6 +3,7 @@ package com.maplehush.admin.system.auth;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.maplehush.admin.system.auth.support.PasswordPolicy;
 import org.junit.jupiter.api.Test;
 
 class PasswordPolicyTest {

@@ -4,7 +4,7 @@ import com.maplehush.admin.common.api.PageResult;
 import com.maplehush.admin.common.api.Result;
 import com.maplehush.admin.system.role.dto.SysRoleQueryDTO;
 import com.maplehush.admin.system.role.dto.SysRoleSaveDTO;
-import com.maplehush.admin.system.role.service.SysRoleService;
+import com.maplehush.admin.system.role.service.ISysRoleService;
 import com.maplehush.admin.system.role.support.SysRoleGrantRules;
 import com.maplehush.admin.system.role.vo.SysRoleVO;
 import jakarta.validation.Valid;
@@ -24,8 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/system/role")
 public class SysRoleController {
-    private final SysRoleService service;
-    public SysRoleController(SysRoleService service) { this.service = service; }
+    private final ISysRoleService service;
+    public SysRoleController(ISysRoleService service) { this.service = service; }
 
     @GetMapping("/list") @PreAuthorize("hasAuthority('system:role:list')")
     public Result<PageResult<SysRoleVO>> list(@RequestParam(defaultValue = "1") String page,

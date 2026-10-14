@@ -1,9 +1,9 @@
 package com.maplehush.admin.system.log.aspect;
 
 import com.maplehush.admin.common.annotation.OperationLog;
-import com.maplehush.admin.system.log.service.SysOperationLogService;
-import com.maplehush.admin.system.log.service.SysOperationLogService.Entry;
-import com.maplehush.admin.system.permission.PermissionService;
+import com.maplehush.admin.system.log.service.ISysOperationLogService.Entry;
+import com.maplehush.admin.system.log.service.ISysOperationLogService;
+import com.maplehush.admin.system.permission.service.IPermissionService;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -22,9 +22,9 @@ import org.springframework.web.servlet.HandlerMapping;
 @Component
 @Order(-100)
 public class OperationLogAspect {
-    private final SysOperationLogService audit;
+    private final ISysOperationLogService audit;
 
-    public OperationLogAspect(SysOperationLogService audit) { this.audit = audit; }
+    public OperationLogAspect(ISysOperationLogService audit) { this.audit = audit; }
 
     @Around("@annotation(operation)")
     public Object record(ProceedingJoinPoint call, OperationLog operation) throws Throwable {
@@ -49,7 +49,7 @@ public class OperationLogAspect {
     private Entry capture(ProceedingJoinPoint call, OperationLog operation) {
         Long actor = null; String username = null;
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getDetails() instanceof PermissionService.Context context) {
+        if (authentication != null && authentication.getDetails() instanceof IPermissionService.Context context) {
             actor = context.user().getId(); username = context.user().getUsername();
         }
         String method = null; String path = null; String ip = null;

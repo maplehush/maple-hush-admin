@@ -1,10 +1,10 @@
 package com.maplehush.admin.system.auth.controller;
 
 import com.maplehush.admin.common.api.Result;
-import com.maplehush.admin.system.auth.UserSnapshotService;
+import com.maplehush.admin.system.auth.service.IUserSnapshotService;
 import com.maplehush.admin.system.auth.vo.CurrentUserVO;
 import com.maplehush.admin.system.menu.vo.MenuRouteVO;
-import com.maplehush.admin.system.permission.PermissionService;
+import com.maplehush.admin.system.permission.service.IPermissionService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 /** 登录后的当前用户、权限码与可见路由查询。 */
 @RestController
 public class CurrentUserController {
-    private final PermissionService permissions;
-    private final UserSnapshotService snapshots;
+    private final IPermissionService permissions;
+    private final IUserSnapshotService snapshots;
 
-    public CurrentUserController(PermissionService permissions, UserSnapshotService snapshots) {
+    public CurrentUserController(IPermissionService permissions, IUserSnapshotService snapshots) {
         this.permissions = permissions; this.snapshots = snapshots;
     }
 

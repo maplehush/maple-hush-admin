@@ -2,6 +2,8 @@ package com.maplehush.admin.system.auth;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.maplehush.admin.system.auth.security.AuthCookies;
+import com.maplehush.admin.system.auth.security.AuthOriginPolicy;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;

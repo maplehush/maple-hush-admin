@@ -3,6 +3,7 @@ package com.maplehush.admin.system.auth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.maplehush.admin.system.auth.security.token.AuthTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 

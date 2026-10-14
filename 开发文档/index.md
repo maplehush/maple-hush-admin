@@ -15,3 +15,5 @@
 | 参考资料 | [详尽版手册总结](./参考资料/手册/阿里巴巴Java开发手册（详尽版）总结.md)、[精简版截图总结](./参考资料/手册/阿里巴巴Java规范手册（精简重点版）总结.md)、[JeecgBoot 参考源码](./参考资料/源码/JeecgBoot/README.md) |
 
 工作指引见仓库根目录的 [AGENTS.md](../AGENTS.md)。后端格式规则见 `backend/.editorconfig`。
+
+后端结构已按用户要求统一为 `service/I...Service` + `service/impl/...ServiceImpl`，调用方注入接口；认证模块按职责归包。T09 后的调整与回归见[分层重构记录](./架构设计/后端分层重构记录.md)。后续任务遵循此规则，T10 仍须用户另行发起。

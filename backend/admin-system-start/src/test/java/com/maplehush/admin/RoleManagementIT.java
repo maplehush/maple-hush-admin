@@ -6,8 +6,8 @@ import static org.mockito.Mockito.doThrow;
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.config.redis.RedisKeyBuilder;
-import com.maplehush.admin.system.auth.AuthRedisService;
-import com.maplehush.admin.system.auth.AuthSessionService;
+import com.maplehush.admin.system.auth.service.IAuthRedisService;
+import com.maplehush.admin.system.auth.service.IAuthSessionService;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -62,12 +62,12 @@ class RoleManagementIT {
     }
     @LocalServerPort private int port;
     @Autowired private JdbcTemplate jdbc;
-    @Autowired private AuthSessionService sessions;
+    @Autowired private IAuthSessionService sessions;
     @Autowired private PasswordEncoder passwords;
     @Autowired private JsonMapper json;
     @Autowired private RedisKeyBuilder keys;
     @Autowired @Qualifier("stringValueRedisTemplate") private RedisTemplate<String, String> redis;
-    @MockitoSpyBean private AuthRedisService snapshots;
+    @MockitoSpyBean private IAuthRedisService snapshots;
     private final HttpClient client = HttpClient.newHttpClient();
     private long admin;
     private long builtin;

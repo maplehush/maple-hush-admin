@@ -3,7 +3,7 @@ package com.maplehush.admin;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.maplehush.admin.config.redis.RedisKeyBuilder;
-import com.maplehush.admin.system.auth.AuthSessionService;
+import com.maplehush.admin.system.auth.service.IAuthSessionService;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -57,7 +57,7 @@ class MenuManagementIT {
     }
     @LocalServerPort private int port;
     @Autowired private JdbcTemplate jdbc;
-    @Autowired private AuthSessionService sessions;
+    @Autowired private IAuthSessionService sessions;
     @Autowired private PasswordEncoder passwords;
     @Autowired private JsonMapper json;
     @Autowired private RedisKeyBuilder keys;

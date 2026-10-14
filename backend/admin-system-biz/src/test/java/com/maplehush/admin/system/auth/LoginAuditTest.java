@@ -6,6 +6,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.maplehush.admin.system.log.service.ISysLoginLogService;
+import com.maplehush.admin.system.log.service.impl.SysLoginLogServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -18,7 +20,7 @@ class LoginAuditTest {
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
         doThrow(new TransactionSystemException("test commit failure")).when(manager).commit(any());
-        LoginAudit audit = new LoginAudit(mock(JdbcTemplate.class), manager);
+        ISysLoginLogService audit = new SysLoginLogServiceImpl(mock(JdbcTemplate.class), manager);
         assertDoesNotThrow(() -> audit.recordEvent(1L, "test-user", "LOGOUT", true, "OK", "127.0.0.1", "test"));
     }
 }

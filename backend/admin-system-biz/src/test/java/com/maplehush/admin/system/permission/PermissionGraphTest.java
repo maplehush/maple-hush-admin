@@ -3,6 +3,7 @@ package com.maplehush.admin.system.permission;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.maplehush.admin.system.menu.entity.SysMenu;
+import com.maplehush.admin.system.permission.support.PermissionGraph;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;

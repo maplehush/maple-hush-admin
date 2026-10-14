@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.config.redis.RedisKeyBuilder;
-import com.maplehush.admin.system.auth.AuthRedisService;
+import com.maplehush.admin.system.auth.service.IAuthRedisService;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -50,7 +50,7 @@ class AuthFlowIT {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PasswordEncoder encoder;
     @Autowired private JsonMapper json;
-    @Autowired private AuthRedisService authRedis;
+    @Autowired private IAuthRedisService authRedis;
     @Autowired private RedisKeyBuilder keys;
     @Autowired @Qualifier("stringValueRedisTemplate") private RedisTemplate<String, String> redis;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
@@ -135,19 +135,19 @@ class AuthFlowIT {
     @Test
     void captchaIsConsumedOnceAndRateLimitIsAtomic() {
         String ip = "test-" + UUID.randomUUID();
-        AuthRedisService.Captcha captcha = authRedis.issueCaptcha(ip);
+        IAuthRedisService.Captcha captcha = authRedis.issueCaptcha(ip);
         String answer = redis.opsForValue().get(keys.key("captcha", captcha.captchaId()));
         authRedis.consumeCaptcha(captcha.captchaId(), answer);
         BusinessException reused = assertThrows(BusinessException.class,
                 () -> authRedis.consumeCaptcha(captcha.captchaId(), answer));
         assertEquals(ErrorCode.CAPTCHA_INVALID, reused.getErrorCode());
-        AuthRedisService.Captcha wrong = authRedis.issueCaptcha("wrong-" + UUID.randomUUID());
+        IAuthRedisService.Captcha wrong = authRedis.issueCaptcha("wrong-" + UUID.randomUUID());
         String correctAnswer = redis.opsForValue().get(keys.key("captcha", wrong.captchaId()));
         assertEquals(ErrorCode.CAPTCHA_INVALID, assertThrows(BusinessException.class,
                 () -> authRedis.consumeCaptcha(wrong.captchaId(), "incorrect")).getErrorCode());
         assertEquals(ErrorCode.CAPTCHA_INVALID, assertThrows(BusinessException.class,
                 () -> authRedis.consumeCaptcha(wrong.captchaId(), correctAnswer)).getErrorCode());
-        AuthRedisService.Captcha expiring = authRedis.issueCaptcha("expire-" + UUID.randomUUID());
+        IAuthRedisService.Captcha expiring = authRedis.issueCaptcha("expire-" + UUID.randomUUID());
         String expiringAnswer = redis.opsForValue().get(keys.key("captcha", expiring.captchaId()));
         redis.expire(keys.key("captcha", expiring.captchaId()), Duration.ofMillis(100));
         try { Thread.sleep(250); } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
@@ -166,7 +166,7 @@ class AuthFlowIT {
 
     @Test
     void concurrentCaptchaConsumptionAllowsOneRequest() throws Exception {
-        AuthRedisService.Captcha captcha = authRedis.issueCaptcha("parallel-" + UUID.randomUUID());
+        IAuthRedisService.Captcha captcha = authRedis.issueCaptcha("parallel-" + UUID.randomUUID());
         String answer = redis.opsForValue().get(keys.key("captcha", captcha.captchaId()));
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch go = new CountDownLatch(1);
