@@ -6,19 +6,23 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.text.ParseException;
-import java.time.Instant;
-import java.util.Date;
-import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
-/** 仅签发两种用途互斥的 HMAC JWT；开发环境未配置密钥时使用进程内随机密钥。 */
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.text.ParseException;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
+
+/**
+ * 仅签发两种用途互斥的 HMAC JWT；开发环境未配置密钥时使用进程内随机密钥
+ */
 @Component
 public class AuthTokenService {
     private final byte[] secret;
@@ -28,7 +32,8 @@ public class AuthTokenService {
     }
 
     @Autowired
-    public AuthTokenService(@Value("${maple-hush.auth.jwt-secret:}") String configuredSecret,
+    public AuthTokenService(
+            @Value("${maple-hush.auth.jwt-secret:}") String configuredSecret,
             Environment environment) {
         this(configuredSecret, environment.acceptsProfiles(Profiles.of("dev")));
     }
@@ -64,14 +69,21 @@ public class AuthTokenService {
         return verify(token, "password_change");
     }
 
-    private String issue(long userId, long authVersion, String purpose, String familyId, int seconds) {
+    private String issue(
+            long userId, long authVersion, String purpose, String familyId, int seconds) {
         try {
             Instant now = Instant.now();
-            JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                    .issuer("maple-hush-admin").subject(Long.toString(userId))
-                    .issueTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(seconds)))
-                    .jwtID(UUID.randomUUID().toString()).claim("typ", purpose)
-                    .claim("ver", authVersion).claim("fid", familyId).build();
+            JWTClaimsSet claims =
+                    new JWTClaimsSet.Builder()
+                            .issuer("maple-hush-admin")
+                            .subject(Long.toString(userId))
+                            .issueTime(Date.from(now))
+                            .expirationTime(Date.from(now.plusSeconds(seconds)))
+                            .jwtID(UUID.randomUUID().toString())
+                            .claim("typ", purpose)
+                            .claim("ver", authVersion)
+                            .claim("fid", familyId)
+                            .build();
             SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
             jwt.sign(new MACSigner(secret));
             return jwt.serialize();
@@ -94,7 +106,9 @@ public class AuthTokenService {
                     || !claims.getExpirationTime().after(new Date())) {
                 throw new IllegalArgumentException("凭据无效");
             }
-            return new Claims(Long.parseLong(claims.getSubject()), claims.getLongClaim("ver"),
+            return new Claims(
+                    Long.parseLong(claims.getSubject()),
+                    claims.getLongClaim("ver"),
                     claims.getStringClaim("fid"));
         } catch (ParseException exception) {
             throw new IllegalArgumentException("凭据无效", exception);

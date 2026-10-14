@@ -18,7 +18,8 @@ class RequestIdFilterTest {
         new RequestIdFilter().doFilter(request, response, new MockFilterChain());
 
         assertThat(response.getHeader(RequestIdFilter.HEADER)).matches("[0-9a-f]{32}");
-        assertThat(response.getHeader(RequestIdFilter.HEADER)).isNotEqualTo("untrusted-client-value");
+        assertThat(response.getHeader(RequestIdFilter.HEADER))
+                .isNotEqualTo("untrusted-client-value");
         assertThat(MDC.get("traceId")).isNull();
     }
 }

@@ -8,6 +8,7 @@ import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.config.redis.RedisKeyBuilder;
 import com.maplehush.admin.system.auth.service.IAuthRedisService;
 import com.maplehush.admin.system.auth.service.impl.AuthRedisServiceImpl;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,11 +25,15 @@ class AuthRedisFailureTest {
             template.setKeySerializer(new StringRedisSerializer());
             template.setValueSerializer(new StringRedisSerializer());
             template.afterPropertiesSet();
-            IAuthRedisService service = new AuthRedisServiceImpl(template, new RedisKeyBuilder("t04_failure"), 600);
-            BusinessException captcha = assertThrows(BusinessException.class, () -> service.issueCaptcha("127.0.0.1"));
+            IAuthRedisService service =
+                    new AuthRedisServiceImpl(template, new RedisKeyBuilder("t04_failure"), 600);
+            BusinessException captcha =
+                    assertThrows(BusinessException.class, () -> service.issueCaptcha("127.0.0.1"));
             assertEquals(ErrorCode.DEPENDENCY_UNAVAILABLE, captcha.getErrorCode());
-            BusinessException login = assertThrows(BusinessException.class,
-                    () -> service.checkLoginLimit("127.0.0.1", "nobody"));
+            BusinessException login =
+                    assertThrows(
+                            BusinessException.class,
+                            () -> service.checkLoginLimit("127.0.0.1", "nobody"));
             assertEquals(ErrorCode.DEPENDENCY_UNAVAILABLE, login.getErrorCode());
         } finally {
             factory.destroy();

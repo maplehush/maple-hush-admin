@@ -2,9 +2,11 @@ package com.maplehush.admin.config.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
+
 import tools.jackson.databind.json.JsonMapper;
+
+import java.time.LocalDateTime;
 
 class JsonTimeConfigurationTest {
     @Test
@@ -15,6 +17,7 @@ class JsonTimeConfigurationTest {
         LocalDateTime value = LocalDateTime.of(2026, 10, 13, 12, 34, 56);
 
         assertThat(mapper.writeValueAsString(value)).isEqualTo("\"2026-10-13 12:34:56\"");
-        assertThat(mapper.readValue("\"2026-10-13 12:34:56\"", LocalDateTime.class)).isEqualTo(value);
+        assertThat(mapper.readValue("\"2026-10-13 12:34:56\"", LocalDateTime.class))
+                .isEqualTo(value);
     }
 }

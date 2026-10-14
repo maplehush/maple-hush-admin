@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.maplehush.admin.system.auth.security.token.AuthTokenService;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 class AuthTokenServiceTest {
-    private final AuthTokenService tokens = new AuthTokenService("0123456789abcdef0123456789abcdef");
+    private final AuthTokenService tokens =
+            new AuthTokenService("0123456789abcdef0123456789abcdef");
 
     @Test
     void passwordChangeTokenCannotActAsAccessToken() {

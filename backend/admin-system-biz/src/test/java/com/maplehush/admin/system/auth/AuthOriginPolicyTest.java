@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.maplehush.admin.system.auth.security.AuthCookies;
 import com.maplehush.admin.system.auth.security.AuthOriginPolicy;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -36,7 +37,12 @@ class AuthOriginPolicyTest {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("prod");
         AuthCookies cookies = new AuthCookies(environment);
-        String value = cookies.refresh("token", java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai")).plusSeconds(10)).toString();
+        String value =
+                cookies.refresh(
+                                "token",
+                                java.time.LocalDateTime.now(java.time.ZoneId.of("Asia/Shanghai"))
+                                        .plusSeconds(10))
+                        .toString();
         assertTrue(value.contains("Secure"));
         assertTrue(value.contains("HttpOnly"));
         assertTrue(value.contains("Path=/api/auth"));

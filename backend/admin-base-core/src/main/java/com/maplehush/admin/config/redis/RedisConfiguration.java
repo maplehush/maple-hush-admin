@@ -7,11 +7,14 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/** Redis 公共连接复用 Boot/Lettuce 自动配置，键和值显式使用 UTF-8 字符串。 */
+/**
+ * Redis 公共连接复用 Boot/Lettuce 自动配置，键和值显式使用 UTF-8 字符串
+ */
 @Configuration
 public class RedisConfiguration {
     @Bean
-    RedisTemplate<String, String> stringValueRedisTemplate(RedisConnectionFactory connectionFactory) {
+    RedisTemplate<String, String> stringValueRedisTemplate(
+            RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, String> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         StringRedisSerializer serializer = new StringRedisSerializer();

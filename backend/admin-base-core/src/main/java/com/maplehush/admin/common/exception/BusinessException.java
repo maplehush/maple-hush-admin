@@ -1,6 +1,8 @@
 package com.maplehush.admin.common.exception;
 
-/** 可安全返回给客户端的预期业务错误。 */
+/**
+ * 可安全返回给客户端的预期业务错误
+ */
 public class BusinessException extends RuntimeException {
     private final ErrorCode errorCode;
 
@@ -9,5 +11,7 @@ public class BusinessException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
-    public ErrorCode getErrorCode() { return errorCode; }
+    public ErrorCode getErrorCode() {
+        return errorCode;
+    }
 }
