@@ -152,6 +152,11 @@ public class AuthRedisServiceImpl implements IAuthRedisService {
         }
     }
 
+    @Override
+    public void checkPasswordChangeLimit(long userId) {
+        checkLimit("password_change", Long.toString(userId), 5, 300);
+    }
+
     private void checkLimit(String purpose, String id, int max, int windowSeconds) {
         try {
             Long count =

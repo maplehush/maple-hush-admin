@@ -58,4 +58,46 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
      */
     @Delete("DELETE FROM auth_refresh_session WHERE user_id=#{id}")
     int removeSessions(@Param("id") long id);
+
+    /**
+     * 本人写操作的锁定投影；密码哈希只用于旧密码核验，不返回客户端
+     * @param id 认证上下文用户 ID
+     * @return 当前用户的写入校验字段
+     */
+    @Select(
+            "SELECT id,username,password,real_name,introduction,avatar_url,status,must_change_password,auth_version FROM sys_user WHERE id=#{id} FOR UPDATE")
+    SysUser lockSelf(@Param("id") long id);
+
+    /**
+     * 只写本人姓名和简介
+     * @param id 当前用户 ID
+     * @param name 姓名
+     * @param introduction 可空简介
+     * @return 更新行数
+     */
+    @Update(
+            "UPDATE sys_user SET real_name=#{name},introduction=#{introduction},update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
+    int updateSelfProfile(
+            @Param("id") long id,
+            @Param("name") String name,
+            @Param("introduction") String introduction);
+
+    /**
+     * 保存本人新密码哈希，不设置临时密码或再次强制改密
+     * @param id 当前用户 ID
+     * @param hash 新密码的 BCrypt 哈希
+     * @return 更新行数
+     */
+    @Update(
+            "UPDATE sys_user SET password=#{hash},must_change_password=0,update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
+    int changeOwnPassword(@Param("id") long id, @Param("hash") String hash);
+
+    /**
+     * 保存后端生成的头像 URL
+     * @param id 当前用户 ID
+     * @param url 受控的长期公开 URL
+     * @return 更新行数
+     */
+    @Update("UPDATE sys_user SET avatar_url=#{url},update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
+    int updateOwnAvatar(@Param("id") long id, @Param("url") String url);
 }

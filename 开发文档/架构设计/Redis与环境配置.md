@@ -89,3 +89,11 @@ T05 新增 `AUTH_ALLOWED_ORIGINS`，生产/测试须显式配置逗号分隔的�
 ## T12 日志保留配置
 
 共享 application.yml 已增加 `maple-hush.log`，不依赖 Redis 保存审计或清理状态。`LOG_LOGIN_RETENTION_DAYS` 默认 90、`LOG_OPERATION_RETENTION_DAYS` 默认 180，均校验 1～3650 天；`LOG_CLEANUP_ENABLED` 默认 true，`LOG_CLEANUP_DELAY_MS` 默认 3600000，设为正的调度间隔毫秒数。各环境可覆盖这些非敏感配置；关闭清理不影响日志写入或查询。严格截止点、每批上限和故障处理见[总体架构的 T12 保留策略](./总体架构.md#t12-日志查询与保留清理)。审计失败通过固定 ERROR 事件及进程内计数观察，部署告警接入在后续运维任务验证。
+
+## T13 已落地的 OSS 与本人改密配置
+
+共享 application.yml 已配置 `maple-hush.oss`：OSS_REGION 默认 oss-cn-beijing、OSS_BUCKET 默认 maple-hush、OSS_PUBLIC_DOMAIN 默认 https://maple-hush.oss-cn-beijing.aliyuncs.com、OSS_OBJECT_PREFIX 默认 vben-admin-img/。OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET 及可选 OSS_SECURITY_TOKEN 仅从后端环境读取，未配置时头像上传返回 503，其他功能仍可启动。SDK 地域去除 oss- 前缀后使用默认 HTTPS Endpoint；不接受前端指定地址或凭据。
+
+multipart 单文件 2MB、整请求 3MB；图片解码后重编码 PNG、宽高和像素限制见[T13 契约](../接口契约/前后端接口契约.md#t13-本人资料改密与头像实施细节)。客户端原始文件名/MIME 不参与路径和内容类型裁定。上传需 Bucket public-read 与 GetBucketAcl/前缀 PutObject/DeleteObject 权限，不自动调整 ACL。按用户指令，真实上传/匿名可读不可写由用户后续验证。
+
+Redis 新增命名空间 `{key-prefix}:password_change:{userId}`，使用既有原子计数与过期脚本，每 5 分钟最多 5 次进入本人改密 Service 的请求；Redis 故障不绕过。本人资料/头像提交后清快照且读时与 MySQL 资料核对；本人改密还递增授权版本、撤销全部会话。

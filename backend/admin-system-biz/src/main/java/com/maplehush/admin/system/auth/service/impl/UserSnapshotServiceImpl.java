@@ -58,7 +58,12 @@ public class UserSnapshotServiceImpl implements IUserSnapshotService {
             if (cached != null) {
                 Snapshot snapshot = json.readValue(cached, Snapshot.class);
                 if (snapshot.authVersion() == user.getAuthVersion()
-                        && snapshot.userId().equals(Long.toString(user.getId()))) {
+                        && snapshot.userId().equals(Long.toString(user.getId()))
+                        && java.util.Objects.equals(snapshot.username(), user.getUsername())
+                        && java.util.Objects.equals(snapshot.realName(), user.getRealName())
+                        && java.util.Objects.equals(snapshot.avatar(), user.getAvatarUrl())
+                        && java.util.Objects.equals(
+                                snapshot.introduction(), user.getIntroduction())) {
                     return new CurrentUserVO(
                             snapshot.userId(),
                             snapshot.username(),

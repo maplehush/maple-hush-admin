@@ -12,5 +12,6 @@
     <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><scope>provided</scope></dependency>
     <dependency><groupId>cn.hutool</groupId><artifactId>hutool-core</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>com.aliyun</groupId><artifactId>alibabacloud-oss-v2</artifactId><version>0.6.0</version></dependency>
   </dependencies>
 </project>

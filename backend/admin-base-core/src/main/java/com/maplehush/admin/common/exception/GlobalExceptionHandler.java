@@ -8,10 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -34,7 +37,9 @@ public class GlobalExceptionHandler {
         ConstraintViolationException.class,
         HttpMessageNotReadableException.class,
         IllegalArgumentException.class,
-        MissingServletRequestParameterException.class
+        MissingServletRequestParameterException.class,
+        MissingServletRequestPartException.class,
+        HttpMediaTypeNotSupportedException.class
     })
     public ResponseEntity<Result<Void>> handleInvalid(Exception exception) {
         return ResponseEntity.badRequest()
@@ -53,6 +58,21 @@ public class GlobalExceptionHandler {
                                 ErrorCode.NOT_FOUND.code(),
                                 ErrorCode.NOT_FOUND.value(),
                                 "请求的资源不存在"));
+    }
+
+    /**
+     * multipart 在 Controller 前拒绝超限文件，仍使用统一响应体
+     * @param exception 框架大小限制异常，不记录文件内容
+     * @return HTTP 413 与稳定参数错误码
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Result<Void>> handleUploadSize(MaxUploadSizeExceededException exception) {
+        return ResponseEntity.status(413)
+                .body(
+                        Result.fail(
+                                ErrorCode.INVALID_ARGUMENT.code(),
+                                ErrorCode.INVALID_ARGUMENT.value(),
+                                "头像文件不能超过 2 MiB"));
     }
 
     @ExceptionHandler(Exception.class)

@@ -3,6 +3,10 @@ spring:
     name: maple-hush-admin
   jackson:
     time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
   mvc:
     problemdetails:
       enabled: false
@@ -40,3 +44,11 @@ maple-hush:
     operation-retention-days: ${LOG_OPERATION_RETENTION_DAYS:180}
     cleanup-enabled: ${LOG_CLEANUP_ENABLED:true}
     cleanup-delay-ms: ${LOG_CLEANUP_DELAY_MS:3600000}
+  oss:
+    region: ${OSS_REGION:oss-cn-beijing}
+    bucket: ${OSS_BUCKET:maple-hush}
+    public-domain: ${OSS_PUBLIC_DOMAIN:https://maple-hush.oss-cn-beijing.aliyuncs.com}
+    object-prefix: ${OSS_OBJECT_PREFIX:vben-admin-img/}
+    access-key-id: ${OSS_ACCESS_KEY_ID:}
+    access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+    security-token: ${OSS_SECURITY_TOKEN:}

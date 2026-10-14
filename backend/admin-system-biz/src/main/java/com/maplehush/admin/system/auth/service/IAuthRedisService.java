@@ -65,5 +65,11 @@ public interface IAuthRedisService {
      */
     void clearSnapshot(long userId);
 
+    /**
+     * 本人改密按用户限制每五分钟最多五次，Redis 故障时拒绝绕过
+     * @param userId 当前认证用户 ID
+     */
+    void checkPasswordChangeLimit(long userId);
+
     record Captcha(String captchaId, String imageBase64) {}
 }

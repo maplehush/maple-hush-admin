@@ -2,6 +2,7 @@ package com.maplehush.admin.system.auth.support;
 
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
 
@@ -26,9 +27,10 @@ public class PasswordPolicy {
         if (candidate == null
                 || candidate.length() < 8
                 || candidate.length() > 128
+                || candidate.getBytes(StandardCharsets.UTF_8).length > 72
                 || candidate.equals(currentPlaintext)
                 || COMMON.contains(candidate.toLowerCase(Locale.ROOT))) {
-            throw new IllegalArgumentException("新密码长度应为 8～128 位，且不能使用旧密码或常见密码");
+            throw new IllegalArgumentException("新密码须至少 8 字符且 UTF-8 不超过 72 字节，不能使用旧密码或常见密码");
         }
     }
 }
