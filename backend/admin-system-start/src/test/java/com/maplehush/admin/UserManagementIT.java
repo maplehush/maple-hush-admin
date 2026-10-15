@@ -132,6 +132,30 @@ class UserManagementIT {
     }
 
     @Test
+    void managementOutputExplicitlyIdentifiesBuiltinMembership() throws Exception {
+        // 使用角色关联判定；账号改名后标识仍须为真，普通用户必须明确返回 false。
+        jdbc.update("UPDATE sys_user SET username='renamed_builtin' WHERE id=?", admin);
+        try {
+            var protectedUser = data(request("GET", "/api/system/user/" + admin, null, access));
+            assertNotNull(protectedUser.get("superAdmin"));
+            assertTrue(protectedUser.get("superAdmin").asBoolean());
+            long ordinary = create("t15_ordinary", "普通用户", null, List.of());
+            var ordinaryUser = data(request("GET", "/api/system/user/" + ordinary, null, access));
+            assertNotNull(ordinaryUser.get("superAdmin"));
+            assertFalse(ordinaryUser.get("superAdmin").asBoolean());
+            var page = data(request("GET", "/api/system/user/list?page=1&pageSize=100", null, access));
+            for (var row : page.get("items")) {
+                assertNotNull(row.get("superAdmin"));
+                assertEquals(
+                        Long.toString(admin).equals(row.get("id").asString()),
+                        row.get("superAdmin").asBoolean());
+            }
+        } finally {
+            jdbc.update("UPDATE sys_user SET username='admin' WHERE id=?", admin);
+        }
+    }
+
+    @Test
     void createPagingDetailsAndSafeFieldsMatchContract() throws Exception {
         long dept = dept();
         long role = role("reader", List.of(1L, 10L));

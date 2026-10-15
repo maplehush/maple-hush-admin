@@ -6,3 +6,8 @@
 - 保留完整 workspace 依赖关系，不能只复制应用子目录。修改 `pnpm-workspace.yaml`、锁文件或移除演示应用时按对应任务卡操作并验证目标应用。
 - `src/api/request.ts` 负责响应拆包和 access 刷新，`src/api/core/` 是现有目标应用调用，`playground/src/api/system/` 仅供系统页面参考。新增/改动 API、路由、日期处理或权限码时同步更新[前后端接口契约](../开发文档/接口契约/前后端接口契约.md)。正式 API 只使用同源 `/api` 前缀；登录、刷新、退出与 CSRF 的最终行为以契约和对应任务卡为准。
 - 前端不得保存数据库/Redis 密码、JWT 密钥或 OSS AccessKey，`VITE_` 变量只能包含可公开配置。不要把 demo 用户、滑块验证码、mock 权限、假改密提示当成已实现功能。
+
+## 系统页面与组件约定
+
+- 系统页面优先直接迁入 Playground 对应模块，保留 list.vue、data.ts、modules/ 及官方布局，再适配真实 API；现有 user/role/menu/dept 已移动到目标应用，不再维护重复页面源码。其他 Playground 演示区域继续保留。
+- 优先使用 Vben Page、useVbenVxeGrid、useVbenForm、useVbenDrawer/useVbenModal、VbenTableAction、VbenDescriptions 等已有封装；字典和日志新增页面也按相同模式组织。不要另写一套 Antdv Table/Form/Modal 替换已有 Vben 管理页面。底层输入、标签等按现有适配器使用 AntdvNext。参考 https://doc.vben.pro/components/introduction.html 。

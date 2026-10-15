@@ -414,6 +414,7 @@ public class SysUserServiceImpl implements ISysUserService {
                 user.getRealName(),
                 user.getDeptId() == null ? null : user.getDeptId().toString(),
                 roles.stream().sorted().map(String::valueOf).toList(),
+                relations.countBuiltin(user.getId()) > 0,
                 user.getStatus(),
                 user.getRemark(),
                 user.getCreateTime(),
