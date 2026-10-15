@@ -70,7 +70,7 @@ function encodeMenuFormValues(
   meta.title ??= '';
   if (values.type === 'link') meta.link = linkSrc;
   if (values.type === 'embedded') meta.iframeSrc = linkSrc;
-  return menuPayload({ ...formValues, meta });
+  return menuPayload({ ...formValues, meta }, formData.value?.meta);
 }
 
 function decodeMenuFormValues(
@@ -479,41 +479,6 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
       triggerFields: ['type'],
     },
   },
-  {
-    component: 'InputNumber',
-    fieldName: 'meta.affixTabOrder',
-    label: '固定标签排序',
-    componentProps: { precision: 0 },
-    dependencies: {
-      show: (values) => values.type !== 'button',
-      triggerFields: ['type'],
-    },
-  },
-  {
-    component: 'InputNumber',
-    fieldName: 'meta.maxNumOfOpenTab',
-    label: '最大标签数量',
-    componentProps: { precision: 0 },
-    dependencies: {
-      show: (values) => values.type !== 'button',
-      triggerFields: ['type'],
-    },
-  },
-  ...[
-    ['breadcrumbUseActivePath', '面包屑使用激活路径'],
-    ['domCached', '缓存DOM'],
-    ['fullPathKey', '完整路径作为键'],
-    ['noBasicLayout', '不使用基础布局'],
-    ['openInNewWindow', '新窗口打开'],
-  ].map(([key, label]): VbenFormSchema<MenuFormValues> => ({
-    component: 'Checkbox' as const,
-    fieldName: `meta.${key}`,
-    label,
-    dependencies: {
-      show: (values) => values.type !== 'button',
-      triggerFields: ['type'],
-    },
-  })),
 ];
 
 const breakpoints = useBreakpoints(breakpointsTailwind);

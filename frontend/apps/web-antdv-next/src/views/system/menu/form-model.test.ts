@@ -9,6 +9,40 @@ import {
 } from './form-model';
 
 describe('menu DTO', () => {
+  it('preserves existing hidden advanced metadata without restoring cleared visible fields', () => {
+    const input = {
+      name: 'Page',
+      type: 'menu' as const,
+      status: 1 as const,
+      path: '/page',
+      component: '/system/user/list',
+      meta: { title: '页面', activePath: '' },
+    };
+    const original = {
+      title: '旧标题',
+      affixTabOrder: 2,
+      maxNumOfOpenTab: 3,
+      breadcrumbUseActivePath: true,
+      domCached: false,
+      fullPathKey: true,
+      noBasicLayout: false,
+      openInNewWindow: true,
+      activePath: '/system/user',
+    };
+    const payload = menuPayload(input, original);
+    expect(payload.meta).toEqual({
+      ...original,
+      title: '页面',
+      activePath: undefined,
+    });
+    expect(
+      menuPayload(
+        { ...input, type: 'button', authCode: 'system:user:create' },
+        original,
+      ).meta,
+    ).toEqual({ title: '页面', icon: undefined, order: undefined });
+    expect(menuPayload(input).meta).toEqual({ title: '页面' });
+  });
   it('sends the same normalized activation path that was validated', () => {
     expect(
       menuPayload({

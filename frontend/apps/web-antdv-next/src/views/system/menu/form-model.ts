@@ -1,4 +1,9 @@
-import type { MenuSave, MenuType, SystemMenu } from '#/api/system/menu';
+import type {
+  MenuMeta,
+  MenuSave,
+  MenuType,
+  SystemMenu,
+} from '#/api/system/menu';
 
 import { z } from '#/adapter/form';
 
@@ -34,8 +39,26 @@ export async function validateOptionalActivePath(
   return await exists(path);
 }
 
-export function menuPayload(value: MenuSave): MenuSave {
-  const meta = { ...value.meta };
+export function menuPayload(
+  value: MenuSave,
+  originalMeta?: Readonly<MenuMeta>,
+): MenuSave {
+  // 编辑基础字段时保留表单未展示的原有高级参数，新建菜单不引入这些参数。
+  const hiddenKeys = [
+    'affixTabOrder',
+    'maxNumOfOpenTab',
+    'breadcrumbUseActivePath',
+    'domCached',
+    'fullPathKey',
+    'noBasicLayout',
+    'openInNewWindow',
+  ] as const;
+  const retained = Object.fromEntries(
+    hiddenKeys
+      .filter((key) => originalMeta?.[key] !== undefined)
+      .map((key) => [key, originalMeta![key]]),
+  ) as Partial<MenuMeta>;
+  const meta = { ...retained, ...value.meta };
   for (const key of Object.keys(meta) as (keyof typeof meta)[]) {
     const field = meta[key];
     if (
