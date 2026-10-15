@@ -1,13 +1,15 @@
 # Maple Hush Admin
 
-基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建；T01 在工作区根目录建仓，直接迁入前后端工程并精简其他 UI 应用，后端仍是 Spring Initializr 空工程。
+基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台，已实现登录认证、动态权限、个人资料，以及用户、角色、菜单、部门、字典和日志管理。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建，已完成 T0～T15，后续验收及部署按任务推进。
+
+仓库地址为 `https://github.com/maplehush/maple-hush-admin.git`。`main` 为主分支，日常开发使用 `develop` 分支。
 
 ## 仓库目录
 
 | 路径 | 用途 |
 | --- | --- |
 | [`frontend/`](./frontend/) | Vben workspace；目标应用 `apps/web-antdv-next` |
-| [`backend/`](./backend/) | Java 21 / Spring Boot 4.1.1 原始工程；T02 才改为四模块 |
+| [`backend/`](./backend/) | Java 21 / Spring Boot 4.1.1 四模块后端，接入 MySQL、Redis 和 Flyway |
 | [`开发文档/`](./开发文档/index.md) | 架构、规范、接口契约与任务卡 |
 
 前端来源：官方 `vbenjs/vue-vben-admin`，T01 用户新提供的提交 `151d80f9e5fb63f2ed8a8c432e1adf2eba253271`；上游 `origin`、迁入过程和验证结果见[T0 记录](./开发文档/任务拆解/T0-前后端原始工程准备.md#本次执行记录)与[T01 记录](./开发文档/任务拆解/T01-建仓迁入工程与前端基线.md#本次执行记录)。后端来自 Spring Initializr 官方生成的 `com.maplehush:admin-system-start` 空工程。
@@ -21,7 +23,7 @@ pnpm install --frozen-lockfile
 pnpm dev:antdv-next
 ```
 
-目标应用类型检查和构建命令见[前端工作指引](./frontend/AGENTS.md)。当前开发环境的 `.env.development` 启用上游 Nitro mock；它只用于原版前端基线，不代表本产品后端已接通。后端的数据库、Redis、认证和四模块结构在后续任务实现。
+前端启动、类型检查和构建命令见[前端说明](./frontend/README.md)。目标应用已关闭 Nitro mock，通过同源 `/api` 接入真实后端，本地联调需同时启动后端并准备 MySQL、Redis。真实 OSS 上传由用户后续测试，部署尚未完成。
 
 ## 文档
 
