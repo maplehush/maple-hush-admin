@@ -37,18 +37,18 @@ const [Grid] = useVbenVxeGrid<AuditRow>({
 });
 </script>
 <template>
-  <Page
-    auto-content-height
-    :title="kind === 'login-log' ? '登录日志' : '操作日志'"
-    ><Grid :table-title="kind === 'login-log' ? '登录日志列表' : '操作日志列表'"
-      ><template #action="{ row }"
-        ><VbenTableAction
+  <Page auto-content-height>
+<Grid :table-title="kind === 'login-log' ? '登录日志列表' : '操作日志列表'">
+<template #action="{ row }">
+<VbenTableAction
           :actions="[
             {
               text: '查看详情',
               onClick: () => detailApi.setData({ kind, row }).open(),
             },
-          ]" /></template></Grid
-    ><DetailDrawer
-  /></Page>
+          ]"
+/>
+</template>
+</Grid><DetailDrawer />
+</Page>
 </template>

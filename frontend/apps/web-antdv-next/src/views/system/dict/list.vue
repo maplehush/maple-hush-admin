@@ -133,14 +133,14 @@ async function removeItem(row: DictItem) {
 }
 </script>
 <template>
-  <Page title="字典管理">
+  <Page>
     <div class="flex flex-col gap-5">
       <TypeGrid table-title="字典类型">
         <template #toolbar-tools>
           <Button v-if="can('create')" type="primary" @click="editType()">
             新增类型
-          </Button> </template
-        ><template #action="{ row }">
+          </Button>
+</template><template #action="{ row }">
           <VbenTableAction
             :actions="[
               { text: '管理字典项', onClick: () => selectType(row) },
@@ -169,9 +169,8 @@ async function removeItem(row: DictItem) {
           <template #toolbar-tools>
             <Button v-if="can('create')" type="primary" @click="editItem()">
               新增字典项
-            </Button> </template
-          ><template #label="{ row }"><DictTag :option="row" /></template
-          ><template #action="{ row }">
+            </Button>
+</template><template #label="{ row }"><DictTag :option="row" /></template><template #action="{ row }">
             <VbenTableAction
               :actions="[
                 {
