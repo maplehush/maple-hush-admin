@@ -15,6 +15,7 @@ import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
 import { router } from './router';
+import { useAuthStore } from './store';
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器
@@ -55,6 +56,7 @@ async function bootstrap(namespace: string) {
 
   // 配置路由及路由守卫
   app.use(router);
+  app.runWithContext(() => useAuthStore().initializeSession());
 
   // 配置Motion插件
   const { MotionPlugin } = await import('@vben/plugins/motion');

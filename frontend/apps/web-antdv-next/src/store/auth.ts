@@ -1,124 +1,149 @@
-import type { Recordable, UserInfo } from '@vben/types';
+import type { Recordable } from '@vben/types';
+
+import type { LoginInput } from '#/auth/session-coordinator';
 
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { LOGIN_PATH } from '@vben/constants';
-import { preferences } from '@vben/preferences';
 import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
 
-import { notification } from 'antdv-next';
+import { message } from 'antdv-next';
 import { defineStore } from 'pinia';
 
-import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
-import { $t } from '#/locales';
-
+import {
+  changeInitialPasswordApi,
+  getAccessCodesApi,
+  getUserInfoApi,
+  loginApi,
+  logoutApi,
+} from '#/api';
+import { session, subscribeSession } from '#/auth/session';
+import { resetRoutes } from '#/router';
+import { safeRedirect } from '#/utils/redirect';
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
   const userStore = useUserStore();
   const router = useRouter();
-
   const loginLoading = ref(false);
-
-  /**
-   * 异步处理登录操作
-   * Asynchronously handle the login process
-   * @param params 登录表单数据
-   */
+  // 专用改密凭据只保留在内存，刷新页面后需重新登录。
+  const passwordChangeToken = ref<null | string>(null);
+  let observedEpoch = session.state.epoch;
+  let subscribed = false;
+  function clearIdentity() {
+    const loading = loginLoading.value;
+    resetAllStores();
+    loginLoading.value = loading;
+    resetRoutes();
+  }
+  function initializeSession() {
+    clearIdentity();
+    accessStore.setAccessToken(session.state.token);
+    observedEpoch = session.state.epoch;
+    if (subscribed) {
+      return;
+    }
+    subscribed = true;
+    subscribeSession((state, remote) => {
+      const changed = state.epoch !== observedEpoch;
+      observedEpoch = state.epoch;
+      if (changed && remote) {
+        clearIdentity();
+      }
+      accessStore.setAccessToken(state.token);
+      if (
+        !state.token &&
+        !passwordChangeToken.value &&
+        !router.currentRoute.value.path.startsWith('/auth')
+      ) {
+        clearIdentity();
+        void router.replace('/auth/login');
+      } else if (changed && remote && state.token) {
+        void router.replace('/dashboard/workspace');
+      }
+    });
+  }
+  async function fetchUserInfo() {
+    const epoch = session.state.epoch;
+    const info = await getUserInfoApi();
+    if (epoch !== session.state.epoch) {
+      throw new Error('登录状态已变化');
+    }
+    userStore.setUserInfo(info);
+    return info;
+  }
+  async function loadIdentity() {
+    const epoch = session.state.epoch;
+    const [info, codes] = await Promise.all([
+      fetchUserInfo(),
+      getAccessCodesApi(),
+    ]);
+    if (epoch !== session.state.epoch) {
+      throw new Error('登录状态已变化');
+    }
+    accessStore.setAccessCodes(codes);
+    return info;
+  }
   async function authLogin(
     params: Recordable<any>,
     onSuccess?: () => Promise<void> | void,
   ) {
-    // 异步处理用户登录操作并获取 accessToken
-    let userInfo: null | UserInfo = null;
+    loginLoading.value = true;
     try {
-      loginLoading.value = true;
-      const { accessToken } = await loginApi(params);
-
-      // 如果成功获取到 accessToken
-      if (accessToken) {
-        accessStore.setAccessToken(accessToken);
-
-        // 获取用户信息并存储到 accessStore 中
-        const [fetchUserInfoResult, accessCodes] = await Promise.all([
-          fetchUserInfo(),
-          getAccessCodesApi(),
-        ]);
-
-        userInfo = fetchUserInfoResult;
-
-        userStore.setUserInfo(userInfo);
-        accessStore.setAccessCodes(accessCodes);
-
-        if (accessStore.loginExpired) {
-          accessStore.setLoginExpired(false);
-        } else {
-          onSuccess
-            ? await onSuccess?.()
-            : await router.push(
-                userInfo.homePath || preferences.app.defaultHomePath,
-              );
-        }
-
-        if (userInfo?.realName) {
-          notification.success({
-            description: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
-            duration: 3,
-            title: $t('authentication.loginSuccess'),
-          });
-        }
+      const result = await loginApi(params as LoginInput);
+      clearIdentity();
+      accessStore.setAccessToken(session.state.token);
+      if (result.passwordChangeRequired) {
+        passwordChangeToken.value = result.passwordChangeToken;
+        await router.replace('/auth/initial-password');
+        return;
+      }
+      if (onSuccess) {
+        await onSuccess();
+      } else {
+        await router.replace(
+          safeRedirect(router.currentRoute.value.query.redirect),
+        );
       }
     } finally {
       loginLoading.value = false;
     }
-
-    return {
-      userInfo,
-    };
   }
-
-  async function logout(redirect: boolean = true) {
+  async function changeInitialPassword(newPassword: string) {
+    if (!passwordChangeToken.value) {
+      await router.replace('/auth/login');
+      return;
+    }
+    await changeInitialPasswordApi(passwordChangeToken.value, newPassword);
+    passwordChangeToken.value = null;
+    message.success('密码修改成功，请使用新密码登录');
+    await router.replace('/auth/login');
+  }
+  async function logout() {
     try {
       await logoutApi();
     } catch {
-      // 不做任何处理
+      message.warning('本地已退出，服务端退出未确认，请稍后重试');
+    } finally {
+      clearIdentity();
+      accessStore.setAccessToken(session.state.token);
+      await router.replace(
+        session.state.token ? '/dashboard/workspace' : '/auth/login',
+      );
     }
-    resetAllStores();
-    accessStore.setLoginExpired(false);
-
-    // 已经在登录页时不能再带 redirect：此时 currentRoute.fullPath 就是登录页本身，
-    // 再编码一层会得到「登录页?redirect=编码后的登录页」，下一次又在这个基础上再包一层，
-    // 反复登出会让 URL 逐跳变长，且没有上限。
-    // On the login page the current route is the login page itself, so carrying it as
-    // `redirect` would nest one more encoded layer on every repeat.
-    const currentRoute = router.currentRoute.value;
-    const alreadyOnLogin = currentRoute.path === LOGIN_PATH;
-
-    // 回登录页带上当前路由地址
-    await router.replace({
-      path: LOGIN_PATH,
-      query:
-        redirect && !alreadyOnLogin
-          ? { redirect: encodeURIComponent(currentRoute.fullPath) }
-          : {},
-    });
   }
-
-  async function fetchUserInfo() {
-    const userInfo = await getUserInfoApi();
-    userStore.setUserInfo(userInfo);
-    return userInfo;
-  }
-
   function $reset() {
     loginLoading.value = false;
+    passwordChangeToken.value = null;
   }
-
   return {
     $reset,
     authLogin,
+    changeInitialPassword,
     fetchUserInfo,
+    initializeSession,
+    loadIdentity,
     loginLoading,
     logout,
+    passwordChangeToken,
   };
 });
