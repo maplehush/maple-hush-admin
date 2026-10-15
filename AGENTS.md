@@ -1,5 +1,7 @@
 # Maple Hush Admin 产品仓库指引
 
+- Git 远程 `origin` 为 `https://github.com/maplehush/maple-hush-admin.git`，仓库根目录是 `D:\maple-hush-workspace\maple-hush-admin`。`main` 为主分支，`develop` 为日常开发分支；后续开发默认在 `develop` 进行，合入 `main` 按用户指令执行。
+
 本仓库包含 `frontend/` Vben workspace、`backend/` Spring Boot 工程和 `开发文档/`。先读[文档首页](./开发文档/index.md)、[总体架构](./开发文档/架构设计/总体架构.md)及[任务索引](./开发文档/任务拆解/README.md)。T0～T15 已实施（T13 真实 OSS 上传由用户后续测试）；目录示例和任务卡不表示后续功能已经实现。
 
 - 用户按 T0～T21 逐项发起实施任务。实施前读对应任务卡和相关设计，只实现本轮范围；发现实际源码与文档不同时，同轮修订架构、接口契约和任务卡。
