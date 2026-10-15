@@ -111,7 +111,7 @@ function onCreate() {
       <Alert
         v-if="can('grant') && !access.accessCodes.includes('system:menu:list')"
         type="info"
-        message="菜单授权依赖 system:menu:list 权限，当前授权入口不可用。"
+        message="暂无菜单查看权限，无法配置菜单权限。"
         class="mb-3"
       />
       <Grid :table-title="$t('system.role.list')">

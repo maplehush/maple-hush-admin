@@ -47,7 +47,7 @@ export function useFormSchema(
             valueField: 'id',
             childrenField: 'children',
           }
-        : { placeholder: '部门ID；留空不分配，后端校验ID' },
+        : { placeholder: '请输入部门 ID，留空不分配' },
       fieldName: 'deptId',
       label: $t('system.user.dept'),
     },
@@ -57,7 +57,7 @@ export function useFormSchema(
             component: options.canListRole ? 'Select' : 'Input',
             componentProps: options.canListRole
               ? { mode: 'multiple', options: [], class: 'w-full' }
-              : { placeholder: '角色ID以逗号分隔；后端校验可授予范围' },
+              : { placeholder: '请输入角色 ID，多个用逗号分隔' },
             fieldName: 'roleIds',
             label: '角色',
           } as VbenFormSchema,

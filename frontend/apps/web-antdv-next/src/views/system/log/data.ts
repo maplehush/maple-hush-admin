@@ -49,7 +49,7 @@ export function useSearchSchema(kind: LogKind): VbenFormSchema[] {
     {
       component: 'RangePicker',
       fieldName: 'createTime',
-      label: '发生时间（东八区）',
+      label: '发生时间',
       componentProps: {
         showTime: { format: 'HH:mm:ss' },
         format: 'YYYY-MM-DD HH:mm:ss',

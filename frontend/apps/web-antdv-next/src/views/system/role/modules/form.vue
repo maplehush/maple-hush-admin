@@ -171,7 +171,7 @@ const getDrawerTitle = computed(() =>
     <Alert
       v-if="can('grant') && !canMenus"
       type="info"
-      message="菜单授权依赖 system:menu:list 权限，当前无法读取管理树。"
+      message="暂无菜单查看权限，无法配置菜单权限。"
       class="mb-3"
     />
     <Form>

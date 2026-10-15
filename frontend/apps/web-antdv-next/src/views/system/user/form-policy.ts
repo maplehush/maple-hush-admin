@@ -61,7 +61,7 @@ export function buildUserPayload(
     image &&
     (image.expiresAt <= now || !/^[a-f\d]{32}$/.test(image.uploadId))
   )
-    throw new Error('头像上传凭据已过期或无效，请重新上传（有效期2小时）');
+    throw new Error('头像已过期或无效，请重新上传');
   if (editing) return payload;
   const username = form.username.trim();
   if (!username || username.length > 64)

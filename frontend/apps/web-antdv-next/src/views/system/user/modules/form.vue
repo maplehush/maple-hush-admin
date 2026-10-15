@@ -87,7 +87,7 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
       emits('success');
       drawerApi.close();
     } catch {
-      error.value = '保存失败，表单已保留；头像凭据过期时请重新上传';
+      error.value = '保存失败，请重试；如头像已过期，请重新上传';
     } finally {
       drawerApi.unlock();
     }

@@ -156,7 +156,7 @@ async function removeItem(row: DictItem) {
                 popConfirm: {
                   okText: '确认',
                   cancelText: '取消',
-                  title: '确认删除字典类型？有字典项时后端拒绝。',
+                  title: '确认删除字典类型？请先删除其下的字典项。',
                   confirm: () => removeType(row),
                 },
               },
@@ -194,7 +194,7 @@ async function removeItem(row: DictItem) {
           </template>
         </ItemGrid>
         <div class="bg-card mt-3 rounded p-4">
-          <p class="mb-2">启用项展示预览（按字典编码读取）：</p>
+          <p class="mb-2">启用项预览：</p>
           <DictTag
             v-for="option in preview"
             :key="option.value"

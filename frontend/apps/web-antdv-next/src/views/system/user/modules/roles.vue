@@ -112,10 +112,10 @@ defineExpose({ drawerApi });
 <template>
   <Drawer :title="`分配角色：${target?.username ?? ''}`">
     <p class="mb-4">
-      全量替换角色；留空清除。角色实际变化后目标用户需要重新登录。
+      选择用户角色，留空可移除全部角色。变更后该用户需重新登录。
     </p>
     <p v-if="!canListRole()" class="mb-4 text-muted-foreground">
-      无角色查询权限，原角色ID已保留；ID与可授予范围由后端校验。
+      暂无角色列表查看权限，请输入角色 ID。
     </p>
     <Form />
     <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>
