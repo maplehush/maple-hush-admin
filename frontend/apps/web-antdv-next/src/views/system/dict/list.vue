@@ -33,7 +33,7 @@ const [TypeGrid, typeGrid] = useVbenVxeGrid<DictType>({
   formOptions: { schema: typeSearch() },
   gridOptions: {
     columns: typeColumns,
-    height: 360,
+    height: 'auto',
     rowConfig: { keyField: 'id' },
     proxyConfig: {
       ajax: {
@@ -133,9 +133,12 @@ async function removeItem(row: DictItem) {
 }
 </script>
 <template>
-  <Page>
-    <div class="flex flex-col gap-5">
-      <TypeGrid table-title="字典类型">
+  <Page :auto-content-height="!selected">
+    <div :class="selected ? 'flex flex-col gap-5' : 'h-full min-h-0'">
+      <TypeGrid
+        table-title="字典类型"
+        :style="{ height: selected ? '360px' : '100%' }"
+      >
         <template #toolbar-tools>
           <Button v-if="can('create')" type="primary" @click="editType()">
             新增类型
@@ -202,9 +205,6 @@ async function removeItem(row: DictItem) {
           /><span v-if="!preview.length">暂无启用项</span>
         </div>
       </section>
-      <p v-else class="bg-card rounded p-5 text-muted-foreground">
-        请先选择一个字典类型。
-      </p>
     </div>
     <FormDrawer @success="refresh" />
   </Page>
