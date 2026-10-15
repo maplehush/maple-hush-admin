@@ -11,6 +11,28 @@ export interface PendingImage {
   uploadId: string;
   expiresAt: number;
 }
+export function pendingImageFromAvatar(
+  files?: readonly { uid: string; status?: string; response?: unknown }[],
+): PendingImage | undefined {
+  if (!files?.length) return undefined;
+  if (files.length !== 1) throw new Error('头像只能上传一张图片');
+  const file = files[0]!;
+  if (file.status !== 'done')
+    throw new Error('请先完成头像上传，或移除失败的文件');
+  if (file.uid === 'existing-avatar') return undefined;
+  const response = file.response;
+  if (
+    !response ||
+    typeof response !== 'object' ||
+    !('uploadId' in response) ||
+    typeof response.uploadId !== 'string' ||
+    !('expiresAt' in response) ||
+    typeof response.expiresAt !== 'number'
+  ) {
+    throw new Error('头像上传结果无效，请重新上传');
+  }
+  return { uploadId: response.uploadId, expiresAt: response.expiresAt };
+}
 export function departmentIdFromTreeEvent(event: unknown): string | undefined {
   if (event === null || event === undefined) return undefined;
   if (typeof event !== 'object' || !('value' in event))

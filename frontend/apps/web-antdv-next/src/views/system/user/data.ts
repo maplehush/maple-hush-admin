@@ -1,5 +1,6 @@
 import type { DescriptionsItemType } from '@vben/common-ui';
 
+import type { ComponentPropsMap } from '#/adapter/component';
 import type { VbenFormSchema } from '#/adapter/form';
 import type { VxeTableGridColumns } from '#/adapter/vxe-table';
 import type { UserRecord } from '#/api/system/user';
@@ -19,6 +20,7 @@ export function useFormSchema(
     canListDept?: boolean;
     canListRole?: boolean;
     enableNeedsAssign?: boolean;
+    avatarUploadProps?: () => ComponentPropsMap['Upload'];
   } = {},
 ): VbenFormSchema[] {
   return [
@@ -85,10 +87,25 @@ export function useFormSchema(
       label: $t('system.user.remark'),
     },
     {
-      component: 'Input',
+      component: 'Upload',
       fieldName: 'avatar',
       label: '头像',
       formItemClass: 'items-start',
+      modelPropName: 'modelValue',
+      help: '支持 JPG、PNG、WebP，最大 2 MB',
+      componentProps: () => ({
+        accept: '.jpg,.jpeg,.png,.webp',
+        maxCount: 1,
+        maxSize: 2,
+        multiple: false,
+        listType: 'picture-card',
+        showUploadList: {
+          showRemoveIcon: (file) => file.uid !== 'existing-avatar',
+        },
+        disabled: true,
+        ...options.avatarUploadProps?.(),
+      }),
+      renderComponentContent: () => ({ default: () => '上传头像' }),
     },
   ];
 }

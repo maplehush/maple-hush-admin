@@ -12,3 +12,4 @@
 - 系统页面优先直接迁入 Playground 对应模块，保留 list.vue、data.ts、modules/ 及官方布局，再适配真实 API；现有 user/role/menu/dept 已移动到目标应用，不再维护重复页面源码。其他 Playground 演示区域继续保留。
 - 优先使用 Vben Page、useVbenVxeGrid、useVbenForm、useVbenDrawer/useVbenModal、VbenTableAction、VbenDescriptions 等已有封装；字典和日志新增页面也按相同模式组织。不要另写一套 Antdv Table/Form/Modal 替换已有 Vben 管理页面。底层输入、标签等按现有适配器使用 AntdvNext。参考 https://doc.vben.pro/components/introduction.html 。
 - 管理页面文案面向实际使用者，保留必要的操作/错误提示；时区、DTO、缓存凭据、权限码和后端校验等实现细节写入开发文档，不堆在常规表单标签或提示中。
+- 表单控件已注册时，直接使用 useVbenForm schema 的 component（包括 Upload）及 componentProps/customRequest；不要用 Input 占位再手写同类控件插槽。模型绑定以目标适配器实际 emits/props 为准，不能把底层原生组件协议直接套在包装组件上。

@@ -1,15 +1,14 @@
 <script lang="ts" setup>
-import type { PendingImage } from '../form-policy';
+import type { UploadFile, UploadProps } from 'antdv-next';
 
 import type { UserCreatePayload, UserRecord } from '#/api/system/user';
 
 import { computed, nextTick, ref } from 'vue';
 
 import { useVbenDrawer } from '@vben/common-ui';
-import { Plus } from '@vben/icons';
 import { useAccessStore } from '@vben/stores';
 
-import { message, Spin, Upload } from 'antdv-next';
+import { message } from 'antdv-next';
 
 import { useVbenForm } from '#/adapter/form';
 import {
@@ -25,6 +24,7 @@ import {
   buildUserPayload,
   canManageProtectedAction,
   parseRoleIds,
+  pendingImageFromAvatar,
 } from '../form-policy';
 
 const emits = defineEmits(['success']);
@@ -34,8 +34,6 @@ const canListRole = () => access.accessCodes.includes('system:role:list');
 const formData = ref<UserRecord>();
 const ready = ref(false);
 const error = ref('');
-const image = ref<PendingImage>();
-const preview = ref('');
 const uploading = ref(false);
 const id = ref<string>();
 const [Form, formApi] = useVbenForm({
@@ -67,7 +65,7 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
           roleIds,
         },
         !!id.value,
-        image.value,
+        pendingImageFromAvatar(values.avatar),
       );
       if (
         formData.value &&
@@ -96,8 +94,6 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
     if (!isOpen) return;
     ready.value = false;
     error.value = '';
-    image.value = undefined;
-    preview.value = '';
     await formApi.reset();
     const data = drawerApi.getData();
     id.value = data?.id;
@@ -114,6 +110,12 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
           canListDept: access.accessCodes.includes('system:dept:list'),
           canListRole: canListRole(),
           enableNeedsAssign: current?.status === 0 && !canAssign(),
+          avatarUploadProps: () => ({
+            disabled: uploading.value || !ready.value,
+            customRequest: uploadAvatar,
+            beforeUpload: validateAvatar,
+            onRemove: removeAvatar,
+          }),
         }),
       });
       await nextTick();
@@ -124,8 +126,8 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
         roleIds: canListRole() ? [] : '',
         status: current?.status ?? 1,
         remark: current?.remark ?? '',
+        avatar: existingAvatarFiles(current?.avatar),
       });
-      preview.value = current?.avatar ?? '';
       if (!current && canAssign() && canListRole()) {
         const roles = await getAssignableRoleOptions();
         formApi.updateSchema([
@@ -155,70 +157,68 @@ defineExpose({ drawerApi });
 const getDrawerTitle = computed(() =>
   formData.value?.id ? '编辑用户' : '新增用户',
 );
-async function upload(file: File) {
-  if (uploading.value || !ready.value) return false;
+function existingAvatarFiles(url?: null | string): UploadFile[] {
+  return url
+    ? [{ uid: 'existing-avatar', name: '当前头像', status: 'done', url }]
+    : [];
+}
+function validateAvatar(file: File) {
   error.value = '';
   if (
     !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) ||
     !file.size ||
     file.size > 2 * 1024 * 1024
   ) {
-    error.value = '仅支持不超过2 MiB的 JPEG、PNG、WebP 图片';
+    error.value = '仅支持不超过 2 MB 的 JPG、PNG、WebP 图片';
+    Object.assign(file, { status: 'removed' });
     return false;
   }
+  return true;
+}
+function removeAvatar(file: UploadFile) {
+  if (file.uid === 'existing-avatar') return false;
+  error.value = '';
+  if (formData.value?.avatar) {
+    void formApi.setValues({
+      avatar: existingAvatarFiles(formData.value.avatar),
+    });
+    return false;
+  }
+  return true;
+}
+async function uploadAvatar({
+  file,
+  onSuccess,
+  onError,
+  onProgress,
+}: Parameters<NonNullable<UploadProps['customRequest']>>[0]) {
+  if (!ready.value || uploading.value || !(file instanceof File)) {
+    onError?.(new Error('暂时无法上传，请稍后重试'));
+    return;
+  }
+  error.value = '';
   const startedAt = Date.now();
   uploading.value = true;
   drawerApi.lock();
   try {
+    onProgress?.({ percent: 0 });
     const result = await uploadUserImage(file);
-    image.value = {
-      uploadId: result.uploadId,
-      expiresAt: startedAt + 2 * 60 * 60 * 1000,
-    };
-    preview.value = result.url;
-  } catch {
+    Object.assign(file, { url: result.url });
+    onProgress?.({ percent: 100 });
+    onSuccess?.({ ...result, expiresAt: startedAt + 2 * 60 * 60 * 1000 });
+    message.success('上传成功，保存用户后生效。');
+  } catch (cause) {
     error.value = '头像上传失败，请重新选择图片';
+    onError?.(cause instanceof Error ? cause : new Error('头像上传失败'));
   } finally {
     uploading.value = false;
     drawerApi.unlock();
   }
-  return false;
 }
 </script>
 <template>
   <Drawer :title="getDrawerTitle">
-    <Form>
-      <template #avatar>
-        <div class="space-y-2">
-          <Spin :spinning="uploading">
-            <Upload
-              accept="image/jpeg,image/png,image/webp"
-              list-type="picture-card"
-              :show-upload-list="false"
-              :disabled="uploading || !ready"
-              :before-upload="upload"
-            >
-              <img
-                v-if="preview"
-                :src="preview"
-                alt="头像预览"
-                class="size-full rounded object-cover"
-              />
-              <div v-else class="flex flex-col items-center gap-2">
-                <Plus class="size-5" />
-                <span>上传头像</span>
-              </div>
-            </Upload>
-          </Spin>
-          <p class="text-sm text-muted-foreground">
-            支持 JPG、PNG、WebP，最大 2 MB
-          </p>
-          <p v-if="image" class="text-sm text-muted-foreground">
-            上传成功，保存用户后生效。
-          </p>
-        </div>
-      </template>
-    </Form>
+    <Form />
     <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>
   </Drawer>
 </template>

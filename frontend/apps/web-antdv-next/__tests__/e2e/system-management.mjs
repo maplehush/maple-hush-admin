@@ -332,7 +332,7 @@ try {
     });
   await page
     .getByRole('dialog')
-    .getByText('上传成功，保存用户后生效。', { exact: true })
+    .locator('.ant-upload-list-item-done')
     .waitFor();
   await saveDialog('/system/user');
   const users = await api(

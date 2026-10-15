@@ -5,9 +5,40 @@ import {
   canManageProtectedAction,
   departmentIdFromTreeEvent,
   parseRoleIds,
+  pendingImageFromAvatar,
 } from './form-policy';
 
 describe('用户管理表单边界', () => {
+  it('头像表单只绑定新上传成功的凭据，已有头像和空列表不发送绑定', () => {
+    expect(pendingImageFromAvatar(undefined)).toBeUndefined();
+    expect(pendingImageFromAvatar([])).toBeUndefined();
+    expect(
+      pendingImageFromAvatar([{ uid: 'existing-avatar', status: 'done' }]),
+    ).toBeUndefined();
+    expect(
+      pendingImageFromAvatar([
+        {
+          uid: 'new',
+          status: 'done',
+          response: { uploadId: 'a'.repeat(32), expiresAt: 123 },
+        },
+      ]),
+    ).toEqual({ uploadId: 'a'.repeat(32), expiresAt: 123 });
+  });
+  it('头像上传中、失败、响应缺失或多文件时不能保存', () => {
+    for (const files of [
+      [{ uid: 'new', status: 'uploading' }],
+      [{ uid: 'new', status: 'error' }],
+      [{ uid: 'new', status: 'done' }],
+      [{ uid: 'new', status: 'done', response: { uploadId: 'bad' } }],
+      [
+        { uid: 'a', status: 'done' },
+        { uid: 'b', status: 'done' },
+      ],
+    ]) {
+      expect(() => pendingImageFromAvatar(files)).toThrow();
+    }
+  });
   it('部门树选择解包节点中的字符串ID，清空时不发送筛选参数', () => {
     expect(
       departmentIdFromTreeEvent({
