@@ -4,6 +4,7 @@ import type { DictItem, DictOption, DictType } from '#/api/system/dict';
 import { nextTick, ref } from 'vue';
 
 import { Page, useVbenDrawer } from '@vben/common-ui';
+import { Plus } from '@vben/icons';
 import { useAccessStore } from '@vben/stores';
 
 import { Button, message } from 'antdv-next';
@@ -141,6 +142,7 @@ async function removeItem(row: DictItem) {
       >
         <template #toolbar-tools>
           <Button v-if="can('create')" type="primary" @click="editType()">
+            <Plus class="size-5" />
             新增类型
           </Button>
 </template><template #action="{ row }">
@@ -171,6 +173,7 @@ async function removeItem(row: DictItem) {
         <ItemGrid :table-title="`字典项 · ${selected.name}`">
           <template #toolbar-tools>
             <Button v-if="can('create')" type="primary" @click="editItem()">
+              <Plus class="size-5" />
               新增字典项
             </Button>
 </template><template #label="{ row }"><DictTag :option="row" /></template><template #action="{ row }">
