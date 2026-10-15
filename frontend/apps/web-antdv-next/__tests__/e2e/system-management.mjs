@@ -321,7 +321,7 @@ try {
   );
   await page
     .getByRole('dialog')
-    .getByLabel('上传头像')
+    .locator('input[type=file]')
     .setInputFiles({
       name: 'test.png',
       mimeType: 'image/png',
@@ -332,7 +332,7 @@ try {
     });
   await page
     .getByRole('dialog')
-    .getByText('凭据有效2小时', { exact: false })
+    .getByText('上传成功，保存用户后生效。', { exact: true })
     .waitFor();
   await saveDialog('/system/user');
   const users = await api(
@@ -384,9 +384,10 @@ try {
     0,
   );
   await recordRow(target.id)
-    .getByRole('button', { name: '分配角色', exact: true })
+    .getByRole('button', { name: '更多', exact: true })
     .last()
     .click();
+  await page.getByRole('menuitem', { name: '分配角色', exact: true }).click();
   await page.getByRole('dialog').getByRole('combobox').click();
   await page
     .locator('.ant-select-item-option-content')
@@ -395,9 +396,10 @@ try {
   await saveDialog(`/system/user/${target.id}/roles`, 'PUT');
   assert.deepEqual((await api(`/system/user/${target.id}`)).roleIds, [role.id]);
   await recordRow(target.id)
-    .getByRole('button', { name: '重置密码', exact: true })
+    .getByRole('button', { name: '更多', exact: true })
     .last()
     .click();
+  await page.getByRole('menuitem', { name: '重置密码', exact: true }).click();
   await saveDialog(`/system/user/${target.id}/reset-password`);
   assert.equal((await api('/user/info')).username, 'admin');
   console.log(

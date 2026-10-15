@@ -56,7 +56,7 @@ export function useFormSchema(
           {
             component: options.canListRole ? 'Select' : 'Input',
             componentProps: options.canListRole
-              ? { mode: 'multiple', options: [] }
+              ? { mode: 'multiple', options: [], class: 'w-full' }
               : { placeholder: '角色ID以逗号分隔；后端校验可授予范围' },
             fieldName: 'roleIds',
             label: '角色',
@@ -83,6 +83,12 @@ export function useFormSchema(
       componentProps: { maxlength: 500, rows: 3, showCount: true },
       fieldName: 'remark',
       label: $t('system.user.remark'),
+    },
+    {
+      component: 'Input',
+      fieldName: 'avatar',
+      label: '头像',
+      formItemClass: 'items-start',
     },
   ];
 }
@@ -188,7 +194,7 @@ export function useColumns(): VxeTableGridColumns<UserRecord> {
       fixed: 'right',
       slots: { default: 'action' },
       title: $t('system.user.operation'),
-      width: 360,
+      width: 220,
     },
   ];
 }

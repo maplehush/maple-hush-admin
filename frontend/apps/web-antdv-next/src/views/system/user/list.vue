@@ -210,24 +210,35 @@ async function onReset(row: UserRecord) {
     /* 取消或失败保留列表；请求层展示错误。 */
   }
 }
-function rowActions(row: UserRecord) {
+function rowActions(row: UserRecord, dropdown = false) {
   const actions = [];
-  if (can('list'))
+  if (!dropdown && can('list'))
     actions.push({
       text: $t('common.detail'),
       icon: 'lucide:eye',
       onClick: () => onDetail(row),
     });
-  if (can('update'))
+  if (!dropdown && can('update'))
     actions.push({
       text: $t('common.edit'),
       icon: 'lucide:edit',
       onClick: () => onEdit(row),
     });
-  if (can('assign-role') && canManageProtectedAction(row))
+  if (dropdown && can('assign-role') && canManageProtectedAction(row))
     actions.push({ text: '分配角色', onClick: () => onRoles(row) });
-  if (can('reset-password') && canManageProtectedAction(row))
+  if (dropdown && can('reset-password') && canManageProtectedAction(row))
     actions.push({ text: '重置密码', onClick: () => onReset(row) });
+  if (dropdown && can('delete') && canManageProtectedAction(row))
+    actions.push({
+      text: $t('common.delete'),
+      icon: 'lucide:trash-2',
+      danger: true,
+      popConfirm: {
+        title: $t('ui.actionMessage.deleteConfirm', [row.name]),
+        confirm: () => onDelete(row),
+      },
+      auth: ['system:user:delete'],
+    });
   return actions;
 }
 </script>
@@ -236,8 +247,8 @@ function rowActions(row: UserRecord) {
     <FormDrawer @success="onRefresh" />
     <DetailDrawer @success="onRefresh" />
     <RolesDrawer @success="onRefresh" />
-    <div class="flex size-full">
-      <Card v-if="canListDept" class="w-1/6">
+    <div class="flex size-full gap-4">
+      <Card v-if="canListDept" class="w-60 shrink-0">
         <Button type="link" class="mb-2" @click="selectDept()">
           全部部门（清除筛选）
         </Button>
@@ -245,6 +256,7 @@ function rowActions(row: UserRecord) {
           v-model:value="inputSearchValue"
           :placeholder="$t('system.user.placeholder')"
         />
+        <div class="mt-4">
         <Tree
           :model-value="selectedDeptId || undefined"
           label-field="name"
@@ -253,9 +265,9 @@ function rowActions(row: UserRecord) {
           :default-expanded-level="2"
           @select="selectDept"
         />
+        </div>
       </Card>
-
-      <div :class="canListDept ? 'w-5/6 ml-4' : 'w-full'">
+      <div class="min-w-0 flex-1">
         <Grid :table-title="$t('system.user.list')">
           <template #toolbar-tools>
             <Button v-if="can('create')" type="primary" @click="onCreate">
@@ -267,24 +279,7 @@ function rowActions(row: UserRecord) {
             <VbenTableAction
               :actions="rowActions(row)"
               more-text="更多"
-              :dropdown-actions="
-                can('delete') && canManageProtectedAction(row)
-                  ? [
-                      {
-                        text: $t('common.delete'),
-                        icon: 'lucide:trash-2',
-                        danger: true,
-                        popConfirm: {
-                          title: $t('ui.actionMessage.deleteConfirm', [
-                            row.name,
-                          ]),
-                          confirm: () => onDelete(row),
-                        },
-                        auth: ['system:user:delete'],
-                      },
-                    ]
-                  : []
-              "
+              :dropdown-actions="rowActions(row, true)"
               align="center"
             />
           </template>

@@ -6,9 +6,10 @@ import type { UserCreatePayload, UserRecord } from '#/api/system/user';
 import { computed, nextTick, ref } from 'vue';
 
 import { useVbenDrawer } from '@vben/common-ui';
+import { Plus } from '@vben/icons';
 import { useAccessStore } from '@vben/stores';
 
-import { message } from 'antdv-next';
+import { message, Spin, Upload } from 'antdv-next';
 
 import { useVbenForm } from '#/adapter/form';
 import {
@@ -154,10 +155,8 @@ defineExpose({ drawerApi });
 const getDrawerTitle = computed(() =>
   formData.value?.id ? '编辑用户' : '新增用户',
 );
-async function upload(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
+async function upload(file: File) {
+  if (uploading.value || !ready.value) return false;
   error.value = '';
   if (
     !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) ||
@@ -165,8 +164,7 @@ async function upload(event: Event) {
     file.size > 2 * 1024 * 1024
   ) {
     error.value = '仅支持不超过2 MiB的 JPEG、PNG、WebP 图片';
-    input.value = '';
-    return;
+    return false;
   }
   const startedAt = Date.now();
   uploading.value = true;
@@ -182,45 +180,45 @@ async function upload(event: Event) {
     error.value = '头像上传失败，请重新选择图片';
   } finally {
     uploading.value = false;
-    input.value = '';
     drawerApi.unlock();
   }
+  return false;
 }
 </script>
 <template>
   <Drawer :title="getDrawerTitle">
-    <p v-if="!id" class="mb-4 text-muted-foreground">
-      初始密码为12345678，首次登录必须修改。
-    </p>
-    <Form />
-    <div class="my-4 space-y-2">
-      <p>头像</p>
-      <img
-        v-if="preview"
-        :src="preview"
-        alt="头像预览"
-        class="size-20 rounded object-cover"
-      />
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        :disabled="uploading || !ready"
-        aria-label="上传头像"
-        @change="upload"
-      />
-      <p class="text-sm text-muted-foreground">
-        JPEG/PNG/WebP，最大2 MiB，后端校验实际内容及尺寸。{{
-          uploading ? '正在上传…' : ''
-        }}
-      </p>
-      <p v-if="image" class="text-sm text-muted-foreground">
-        凭据有效2小时，请于
-        {{
-          new Date(image.expiresAt).toLocaleString('zh-CN', { hour12: false })
-        }}
-        前保存。
-      </p>
-    </div>
+    <Form>
+      <template #avatar>
+        <div class="space-y-2">
+          <Spin :spinning="uploading">
+            <Upload
+              accept="image/jpeg,image/png,image/webp"
+              list-type="picture-card"
+              :show-upload-list="false"
+              :disabled="uploading || !ready"
+              :before-upload="upload"
+            >
+              <img
+                v-if="preview"
+                :src="preview"
+                alt="头像预览"
+                class="size-full rounded object-cover"
+              />
+              <div v-else class="flex flex-col items-center gap-2">
+                <Plus class="size-5" />
+                <span>上传头像</span>
+              </div>
+            </Upload>
+          </Spin>
+          <p class="text-sm text-muted-foreground">
+            支持 JPG、PNG、WebP，最大 2 MB
+          </p>
+          <p v-if="image" class="text-sm text-muted-foreground">
+            上传成功，保存用户后生效。
+          </p>
+        </div>
+      </template>
+    </Form>
     <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>
   </Drawer>
 </template>
