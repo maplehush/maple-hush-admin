@@ -77,7 +77,7 @@ try {
     'login-log',
     'operation-log',
   ]) {
-    await page.goto(`${base}/system/${name}`);
+    await page.goto(`${base}/${name.endsWith('log') ? 'log' : 'system'}/${name}`);
     await page.locator('.vxe-table').first().waitFor();
     await page.waitForTimeout(900);
     console.log(
@@ -406,7 +406,7 @@ try {
     'PASS protected super-admin buttons, independent user role assignment and reset without logging operator out',
   );
   for (const logKind of ['login-log', 'operation-log']) {
-    await page.goto(`${base}/system/${logKind}`);
+    await page.goto(`${base}/log/${logKind}`);
     await page
       .getByRole('button', { name: '查看详情', exact: true })
       .first()

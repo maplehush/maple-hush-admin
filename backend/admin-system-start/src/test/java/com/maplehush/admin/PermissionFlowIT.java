@@ -278,7 +278,10 @@ class PermissionFlowIT {
             jdbc.update("UPDATE sys_user SET must_change_password=0 WHERE id=?", adminId);
             String adminAccess = sessions.open(adminId, version).accessToken();
             var adminRoutes = json.readTree(get("/api/menu/all", adminAccess).body()).get("data");
-            assertEquals(7, adminRoutes.get(0).get("children").size());
+            assertEquals(2, adminRoutes.size());
+            assertEquals(5, adminRoutes.get(0).get("children").size());
+            assertEquals("/log", adminRoutes.get(1).get("path").asString());
+            assertEquals(2, adminRoutes.get(1).get("children").size());
             assertEquals(
                     25,
                     json.readTree(get("/api/auth/codes", adminAccess).body()).get("data").size());

@@ -14,11 +14,13 @@ START TRANSACTION;
 INSERT INTO sys_role (role_code, role_name, is_builtin, status, remark)
 VALUES ('super_admin', '超级管理员', 1, 1, '系统内置角色，不允许删除、停用或通过普通角色表单改授权');
 
--- 系统管理目录先插入，确保后续页面满足自引用外键。
+-- 当前设计含系统管理和日志管理两个根目录；71 仅为空库草案示例。
+-- 产品升级运行 V4 并自动分配目录 ID，不修改已经执行的 V2。
 INSERT INTO sys_menu
     (id, parent_id, name, title, type, path, component, redirect, auth_code, icon, sort, status)
 VALUES
-    (1, NULL, 'System', '系统管理', 'catalog', '/system', NULL, NULL, NULL, 'lucide:settings-2', 10, 1);
+    (1, NULL, 'System', '系统管理', 'catalog', '/system', NULL, NULL, NULL, 'lucide:settings-2', 10, 1),
+    (71, NULL, 'LogManagement', '日志管理', 'catalog', '/log', NULL, NULL, NULL, 'lucide:logs', 20, 1);
 
 -- 首版七个页面；页面节点的 auth_code 是进入页面所需的查询权限。
 INSERT INTO sys_menu
@@ -29,8 +31,8 @@ VALUES
     (30, 1, 'SystemMenu', '菜单管理', 'menu', 'menu', '/system/menu/list', NULL, 'system:menu:list', NULL, 30, 1),
     (40, 1, 'SystemDept', '部门管理', 'menu', 'dept', '/system/dept/list', NULL, 'system:dept:list', NULL, 40, 1),
     (50, 1, 'SystemDict', '字典管理', 'menu', 'dict', '/system/dict/list', NULL, 'system:dict:list', NULL, 50, 1),
-    (60, 1, 'SystemLoginLog', '登录日志', 'menu', 'login-log', '/system/login-log/list', NULL, 'system:login-log:list', NULL, 60, 1),
-    (70, 1, 'SystemOperationLog', '操作日志', 'menu', 'operation-log', '/system/operation-log/list', NULL, 'system:operation-log:list', NULL, 70, 1);
+    (60, 71, 'SystemLoginLog', '登录日志', 'menu', 'login-log', '/system/login-log/list', NULL, 'system:login-log:list', NULL, 60, 1),
+    (70, 71, 'SystemOperationLog', '操作日志', 'menu', 'operation-log', '/system/operation-log/list', NULL, 'system:operation-log:list', NULL, 70, 1);
 
 -- 按钮节点只提供操作权限码，不进入当前用户的动态路由树。
 INSERT INTO sys_menu

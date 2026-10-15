@@ -46,7 +46,7 @@ class SystemMigrationIT {
     @Test
     void migrationAndSeedAreComplete() {
         assertEquals(
-                3,
+                4,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",
                         Integer.class));
@@ -66,7 +66,7 @@ class SystemMigrationIT {
                         "SELECT COUNT(*) FROM sys_role WHERE role_code='super_admin' AND is_builtin=1",
                         Integer.class));
         assertEquals(
-                1,
+                2,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM sys_menu WHERE type='catalog' AND auth_code IS NULL",
                         Integer.class));
@@ -78,7 +78,7 @@ class SystemMigrationIT {
                 18,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM sys_menu WHERE type='button'", Integer.class));
-        assertEquals(26, jdbc.queryForObject("SELECT COUNT(*) FROM sys_role_menu", Integer.class));
+        assertEquals(27, jdbc.queryForObject("SELECT COUNT(*) FROM sys_role_menu", Integer.class));
         assertEquals(
                 0,
                 jdbc.queryForObject(

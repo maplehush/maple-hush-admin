@@ -33,7 +33,7 @@ export function createRouterGuard(router: Router) {
       };
     }
     if (access.isAccessChecked) {
-      return to.name === 'FallbackNotFound' && to.path.startsWith('/system')
+      return to.name === 'FallbackNotFound' && /^\/(?:system|log)(?:\/|$)/.test(to.path)
         ? '/forbidden'
         : true;
     }
