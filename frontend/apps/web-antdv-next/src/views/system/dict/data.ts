@@ -137,9 +137,9 @@ export const typeColumns: VxeTableGridColumns = [
   },
 ];
 export const itemColumns: VxeTableGridColumns = [
-  { field: 'label', title: '标签', minWidth: 140, slots: { default: 'label' } },
+  { field: 'label', title: '标签', minWidth: 140 },
   { field: 'value', title: '值', minWidth: 100 },
-  { field: 'color', title: '颜色', width: 110 },
+  { field: 'color', title: '颜色', width: 160, slots: { default: 'color' } },
   { field: 'sort', title: '排序', width: 90 },
   {
     field: 'defaultItem',
@@ -156,7 +156,7 @@ export const itemColumns: VxeTableGridColumns = [
   {
     field: 'operation',
     title: '操作',
-    width: 180,
+    width: 120,
     fixed: 'right',
     slots: { default: 'action' },
   },

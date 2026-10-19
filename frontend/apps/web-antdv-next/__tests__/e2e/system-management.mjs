@@ -122,6 +122,8 @@ try {
   }
   async function saveDialog(path, method = 'POST') {
     const dialog = page.getByRole('dialog').last();
+    const dialogElement = await dialog.elementHandle();
+    assert(dialogElement);
     const response = page.waitForResponse(
       (r) =>
         new URL(r.url()).pathname === `/api${path}` &&
@@ -132,7 +134,7 @@ try {
       .last()
       .click();
     assert.equal((await response).status(), 200);
-    await dialog.waitFor({ state: 'hidden' });
+    await dialogElement.waitForElementState('hidden');
   }
   const recordRow = (id) => page.locator('.vxe-body--row[rowid="' + id + '"]');
   const stamp = Date.now().toString().slice(-7);
@@ -140,10 +142,12 @@ try {
   await page.getByRole('button', { name: '新增类型', exact: true }).click();
   await page
     .getByRole('dialog')
+    .last()
     .getByLabel('字典编码')
     .fill(`t15_status_${stamp}`);
   await page
     .getByRole('dialog')
+    .last()
     .getByLabel('类型名称')
     .fill(`验收字典${stamp}`);
   await saveDialog('/system/dict/type');
@@ -153,14 +157,15 @@ try {
   await page
     .locator('.vxe-body--row')
     .filter({ hasText: `t15_status_${stamp}` })
-    .getByRole('button', { name: '管理字典项', exact: true })
+    .getByRole('button', { name: '字典项配置', exact: true })
     .last()
     .click();
   await page.getByRole('button', { name: '新增字典项', exact: true }).click();
-  await page.getByRole('dialog').getByLabel('标签').fill('启用');
-  await page.getByRole('dialog').getByLabel('字典值').fill('1');
+  await page.getByRole('dialog').last().getByLabel('标签').fill('启用');
+  await page.getByRole('dialog').last().getByLabel('字典值').fill('1');
   await page
     .getByRole('dialog')
+    .last()
     .getByPlaceholder('#RRGGBB，留空使用普通样式')
     .fill('#22c55e');
   await saveDialog('/system/dict/item');
@@ -175,23 +180,27 @@ try {
   );
   // 字典编辑保留真实类型、颜色与默认项；随后清除颜色并停用。
   await page
-    .getByRole('button', { name: '编辑字典项', exact: true })
+    .getByRole('dialog', { name: /字典项配置/ })
+    .getByRole('button', { name: '编辑', exact: true })
     .first()
     .click();
   await page
     .getByRole('dialog')
+    .last()
     .getByLabel('标签', { exact: false })
     .fill('启用（已改）');
-  await page.getByRole('dialog').getByRole('checkbox').check();
+  await page.getByRole('dialog').last().getByRole('checkbox').check();
   await saveDialog(`/system/dict/item/${items.items[0].id}`, 'PUT');
   items = await api(`/system/dict/item/list?dictTypeId=${type.id}`);
   assert.equal(items.items[0].defaultItem, true);
   await page
-    .getByRole('button', { name: '编辑字典项', exact: true })
+    .getByRole('dialog', { name: /字典项配置/ })
+    .getByRole('button', { name: '编辑', exact: true })
     .first()
     .click();
   await page
     .getByRole('dialog')
+    .last()
     .getByRole('button', { name: /清\s*除/ })
     .click();
   await saveDialog(`/system/dict/item/${items.items[0].id}`, 'PUT');
@@ -200,6 +209,15 @@ try {
     null,
   );
   console.log('PASS dictionary edit/default/color clear');
+  await page
+    .getByRole('dialog', { name: /字典项配置/ })
+    .locator('[data-slot="sheet-header"]')
+    .getByRole('button')
+    .last()
+    .click();
+  await page
+    .getByRole('dialog', { name: /字典项配置/ })
+    .waitFor({ state: 'hidden' });
   // 部门官方 VbenModal。
   await page.goto(`${base}/system/dept`);
   await page.getByRole('button', { name: /新增.*部门/ }).click();

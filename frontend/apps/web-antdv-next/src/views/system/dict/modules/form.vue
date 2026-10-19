@@ -115,7 +115,7 @@ const [Drawer, drawerApi] = useVbenDrawer<{
 </script>
 <template>
   <Drawer
-    :title="`${data.id ? '编辑' : '新增'}${data.kind === 'type' ? '字典类型' : '字典项'}`"
+    :title="data.id ? '编辑' : data.kind === 'type' ? '新增类型' : '新增字典项'"
   >
     <Form />
   </Drawer>
