@@ -1,0 +1,147 @@
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USERNAME:?Set a non-root MYSQL_USERNAME in .env}
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+    secrets:
+      - mysql_password
+      - mysql_root_password
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'MYSQL_PWD="$$(cat /run/secrets/mysql_password)" mysql --protocol=TCP --host=127.0.0.1 --user="$$MYSQL_USER" --database="$$MYSQL_DATABASE" --connect-timeout=3 --execute="SELECT 1" >/dev/null 2>&1'
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 10
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    user: redis
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    command: ["sh", "/usr/local/etc/redis/start.sh"]
+    volumes:
+      - ./deploy/redis-start.sh:/usr/local/etc/redis/start.sh:ro
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      - /data:size=16m,mode=1777
+    secrets:
+      - redis_password
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli --no-auth-warning PING | grep -qx PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+
+  backend:
+    image: ${COMPOSE_PROJECT_NAME:-maple_hush_backend}-backend:${BACKEND_IMAGE_TAG:-local}
+    build:
+      context: .
+      args:
+        MAVEN_IMAGE: ${MAVEN_IMAGE:-maven:3.9.9-eclipse-temurin-21}
+        JAVA_IMAGE: ${JAVA_IMAGE:-eclipse-temurin:21-jre-jammy}
+    init: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-1g}
+    stop_grace_period: 30s
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    ports:
+      - "127.0.0.1:${BACKEND_HTTP_PORT:-8080}:8080"
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?Select dev, test or prod in .env}
+      # ConfigTree filenames supply the placeholders in application-*.yml.
+      SPRING_CONFIG_IMPORT: configtree:/run/secrets/
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:?Set MYSQL_USERNAME in .env}
+      SPRING_DATASOURCE_HIKARI_CONNECTIONTIMEOUT: "3000"
+      SPRING_DATASOURCE_HIKARI_VALIDATIONTIMEOUT: "1000"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: ${REDIS_DATABASE:?Set REDIS_DATABASE in .env}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:?Set a unique REDIS_KEY_PREFIX in .env}
+      ADMIN_BOOTSTRAP_ENABLED: ${ADMIN_BOOTSTRAP_ENABLED:-false}
+      ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-admin}
+      AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?Set exact browser origins in .env}
+      AUTH_SESSION_RETENTION_DAYS: ${AUTH_SESSION_RETENTION_DAYS:-7}
+      AUTH_SESSION_CLEANUP_DELAY_MS: ${AUTH_SESSION_CLEANUP_DELAY_MS:-3600000}
+      AUTH_USER_SNAPSHOT_TTL_SECONDS: ${AUTH_USER_SNAPSHOT_TTL_SECONDS:-600}
+      LOG_LOGIN_RETENTION_DAYS: ${LOG_LOGIN_RETENTION_DAYS:-90}
+      LOG_OPERATION_RETENTION_DAYS: ${LOG_OPERATION_RETENTION_DAYS:-180}
+      LOG_CLEANUP_ENABLED: ${LOG_CLEANUP_ENABLED:-true}
+      LOG_CLEANUP_DELAY_MS: ${LOG_CLEANUP_DELAY_MS:-3600000}
+      OSS_REGION: ${OSS_REGION:-oss-cn-beijing}
+      OSS_BUCKET: ${OSS_BUCKET:-maple-hush}
+      OSS_PUBLIC_DOMAIN: ${OSS_PUBLIC_DOMAIN:-https://maple-hush.oss-cn-beijing.aliyuncs.com}
+      OSS_OBJECT_PREFIX: ${OSS_OBJECT_PREFIX:-vben-admin-img/}
+      SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-none}
+      SERVER_TOMCAT_REMOTEIP_INTERNALPROXIES: ${TRUSTED_PROXY_REGEX:-(?!)}
+    secrets:
+      - source: mysql_password
+        target: MYSQL_PASSWORD
+      - source: redis_password
+        target: REDIS_PASSWORD
+      - source: auth_jwt_secret
+        target: AUTH_JWT_SECRET
+      - source: oss_access_key_id
+        target: OSS_ACCESS_KEY_ID
+      - source: oss_access_key_secret
+        target: OSS_ACCESS_KEY_SECRET
+      - source: oss_security_token
+        target: OSS_SECURITY_TOKEN
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, "curl --fail --silent --max-time 4 http://127.0.0.1:8080/actuator/health/readiness >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+    logging: *logging
+
+volumes:
+  mysql_data:
+
+secrets:
+  mysql_root_password:
+    file: ${SECRETS_DIR:-./secrets}/mysql_root_password
+  mysql_password:
+    file: ${SECRETS_DIR:-./secrets}/mysql_password
+  redis_password:
+    file: ${SECRETS_DIR:-./secrets}/redis_password
+  auth_jwt_secret:
+    file: ${SECRETS_DIR:-./secrets}/auth_jwt_secret
+  oss_access_key_id:
+    file: ${SECRETS_DIR:-./secrets}/oss_access_key_id
+  oss_access_key_secret:
+    file: ${SECRETS_DIR:-./secrets}/oss_access_key_secret
+  oss_security_token:
+    file: ${SECRETS_DIR:-./secrets}/oss_security_token

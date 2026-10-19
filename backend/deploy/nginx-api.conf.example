@@ -1,0 +1,33 @@
+# Host gateway example. Replace the domain/certificate paths, run nginx -t, and
+# configure the backend's exact trusted proxy address before enabling forwarding.
+server {
+    listen 80;
+    server_name api.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name api.example.com;
+    ssl_certificate /etc/nginx/certs/api.example.com/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/api.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 3m;
+
+    location /api/ {
+        # Preserve /api exactly once; no trailing URI on proxy_pass.
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port 443;
+        proxy_read_timeout 60s;
+    }
+
+    # Probe the backend from the host/container network, not through the public API.
+    location / { return 404; }
+}

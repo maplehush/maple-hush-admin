@@ -1,0 +1,34 @@
+# Only build inputs enter the context; local config/secrets/tests/outputs do not.
+**
+!pom.xml
+!admin-base-core/
+!admin-base-core/pom.xml
+!admin-base-core/src/
+!admin-base-core/src/main/
+!admin-base-core/src/main/**
+!admin-system-api/
+!admin-system-api/pom.xml
+!admin-system-api/src/
+!admin-system-api/src/main/
+!admin-system-api/src/main/**
+!admin-system-biz/
+!admin-system-biz/pom.xml
+!admin-system-biz/src/
+!admin-system-biz/src/main/
+!admin-system-biz/src/main/**
+!admin-system-start/
+!admin-system-start/pom.xml
+!admin-system-start/src/
+!admin-system-start/src/main/
+!admin-system-start/src/main/**
+# Deny sensitive/output files even if someone puts them inside src/main/.
+**/.env
+**/.env.*
+**/secrets/**
+**/*.pem
+**/*.crt
+**/*.cer
+**/*.key
+**/*.p12
+**/*.pfx
+**/target/**

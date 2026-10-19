@@ -101,3 +101,11 @@ Redis 新增命名空间 `{key-prefix}:password_change:{userId}`，使用既有�
 ### T13 统一文件上传凭据
 
 Redis 使用 `{key-prefix}:file_upload:{uploadId}` 保存随机标识对应的上传人 ID 和服务端生成 URL，TTL 为 2 小时；只由后端签发和读取，管理表单不能提交任意 URL。凭据不消费以支持提交失败重试，同一上传人可在有效期内复用素材；过期需重新上传，但不会删除已经交付的通用素材。公开素材目录为 `vben-admin-img/files/{上传人ID}/{随机名}.png`，继承现有 OSS 配置；该目录不允许直接配置到期删除生命周期，避免已绑定业务头像失效。
+
+## T18 独立 Compose 已落地
+
+入口为 [backend/docker-compose.yml](../../backend/docker-compose.yml) 与 [部署说明](../../backend/deploy/README.md)。后端、MySQL 8.4、Redis 7.4 三服务按 Compose 项目隔离，MySQL 使用命名卷，Redis 禁用持久化并使用 noeviction；数据服务不映射端口，后端只发布回环 8080。Compose 使用专用 maple_hush 数据库账号，本地 IDE 的 root/123456 默认值保留。
+
+密码、JWT 和 OSS 凭据通过文件 secrets 注入，后端显式使用 configtree:/run/secrets/，不依赖隐式 *_FILE 支持；.env.example 仅含非秘密参数。开发初始化脚本创建缺失的开发文件，测试/生产必须提供独立文件。readiness 检查 MySQL/Redis，liveness 不绑定依赖；默认忽略转发头，启用真实 IP 须配置准确可信代理并由网关覆盖头部。
+
+本地 Jar、文件密钥和依赖断连/恢复已验证；缺少 Docker 引擎及域名证书，实际镜像构建、容器健康、持久卷与公网 TLS 仍待验收。最终结果以 [T18 任务卡](../任务拆解/T18-后端镜像与独立部署.md)为准。
