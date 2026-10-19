@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T09_IT_ENABLED", matches = "true")
 class RoleManagementIT {
     private static final String SCHEMA =
@@ -251,7 +251,7 @@ class RoleManagementIT {
                 1,
                 jdbc.queryForObject(
                         "SELECT status FROM sys_role WHERE id=?", Integer.class, builtin));
-        assertEquals(26, ids(builtin).size());
+        assertEquals(27, ids(builtin).size());
     }
 
     @Test

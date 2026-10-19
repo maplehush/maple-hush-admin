@@ -44,7 +44,7 @@ import java.util.concurrent.TimeoutException;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T08_IT_ENABLED", matches = "true")
 class DeptManagementIT {
     private static final String SCHEMA =

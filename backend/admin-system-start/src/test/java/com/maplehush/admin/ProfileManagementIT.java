@@ -56,7 +56,7 @@ import javax.imageio.ImageIO;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T13_IT_ENABLED", matches = "true")
 class ProfileManagementIT {
     private static final String SCHEMA =

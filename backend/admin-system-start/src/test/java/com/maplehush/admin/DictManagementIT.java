@@ -44,7 +44,7 @@ import java.util.concurrent.Executors;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T11_IT_ENABLED", matches = "true")
 class DictManagementIT {
     private static final String SCHEMA =

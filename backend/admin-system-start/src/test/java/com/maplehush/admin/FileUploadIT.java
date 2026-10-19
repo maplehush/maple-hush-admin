@@ -53,7 +53,7 @@ import javax.imageio.ImageIO;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T13_FILE_IT_ENABLED", matches = "true")
 class FileUploadIT {
     private static final String SCHEMA =

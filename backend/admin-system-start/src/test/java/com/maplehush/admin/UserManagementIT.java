@@ -54,7 +54,7 @@ import java.util.concurrent.Executors;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T10_IT_ENABLED", matches = "true")
 class UserManagementIT {
     private static final String SCHEMA =
@@ -795,7 +795,7 @@ class UserManagementIT {
             throws Exception {
         var builder = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path));
         if ("POST".equals(method)) {
-            builder.header("Origin", "http://127.0.0.1:" + port);
+            builder.header("Origin", TestOrigin.allowed(port));
         }
         if (token != null) {
             builder.header("Authorization", "Bearer " + token);

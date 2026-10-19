@@ -53,7 +53,7 @@ import java.util.concurrent.Executors;
             "maple-hush.auth.bootstrap-enabled=true",
             "maple-hush.auth.jwt-secret=t05-test-secret-0123456789abcdef0123456789"
         })
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T05_IT_ENABLED", matches = "true")
 class SessionFlowIT {
     private static final String REDIS_PREFIX =
@@ -462,6 +462,10 @@ class SessionFlowIT {
     }
 
     private String origin() {
+        return TestOrigin.allowed(port);
+    }
+
+    private String baseUrl() {
         return "http://127.0.0.1:" + port;
     }
 
@@ -507,7 +511,7 @@ class SessionFlowIT {
             String referer)
             throws Exception {
         HttpRequest.Builder request =
-                HttpRequest.newBuilder(URI.create(origin() + path)).timeout(Duration.ofSeconds(10));
+                HttpRequest.newBuilder(URI.create(baseUrl() + path)).timeout(Duration.ofSeconds(10));
         if (cookies != null) {
             request.header("Cookie", cookies);
         }

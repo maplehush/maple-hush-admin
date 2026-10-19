@@ -162,7 +162,7 @@ class BootstrapGuardIT {
         return new SpringApplicationBuilder(AdminApplication.class)
                 .web(WebApplicationType.NONE)
                 .run(
-                        "--spring.profiles.active=dev",
+                        "--spring.profiles.active=test",
                         "--spring.datasource.url=jdbc:mysql://127.0.0.1:3306/"
                                 + schema
                                 + "?connectionTimeZone=%2B08:00&forceConnectionTimeZoneToSession=true",

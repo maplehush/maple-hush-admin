@@ -55,7 +55,7 @@ import java.util.UUID;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
 @Import(PermissionFlowIT.Fixtures.class)
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T06_IT_ENABLED", matches = "true")
 class PermissionFlowIT {
     private static final String SCHEMA =

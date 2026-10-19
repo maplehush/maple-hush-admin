@@ -5,13 +5,14 @@ import process from 'node:process';
 
 // eslint-disable-next-line n/no-extraneous-import -- workspace 根目录测试依赖。
 import { chromium } from 'playwright';
-const base = process.env.T15_BASE || 'http://127.0.0.1:6001/#';
-const schema = process.env.T15_DATABASE;
+const base =
+  process.env.T17_BASE || process.env.T15_BASE || 'http://127.0.0.1:6001/#';
+const schema = process.env.T17_DATABASE || process.env.T15_DATABASE;
 assert(
-  schema && /^maple_hush_t15_[a-z0-9_]+$/.test(schema),
-  '必须使用T15隔离库与同名前缀',
+  schema && /^maple_hush_t(?:15|17)_[a-z0-9_]+$/.test(schema),
+  '必须使用 T15/T17 隔离库与同名前缀',
 );
-const pass = 'T15Browser!Example42';
+const pass = process.env.T17_PASSWORD || 'T15Browser!Example42';
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const context = await browser.newContext({
   timezoneId: 'Asia/Shanghai',
@@ -55,8 +56,12 @@ async function login(password = pass, username = 'admin') {
   await page.getByRole('button', { name: 'login', exact: true }).click();
 }
 try {
-  await login(process.env.T15_SKIP_INITIAL ? pass : '12345678');
-  if (!process.env.T15_SKIP_INITIAL) {
+  await login(
+    process.env.T17_SKIP_INITIAL || process.env.T15_SKIP_INITIAL
+      ? pass
+      : '12345678',
+  );
+  if (!process.env.T17_SKIP_INITIAL && !process.env.T15_SKIP_INITIAL) {
     await page.waitForURL('**/auth/initial-password');
     await page.getByRole('textbox', { name: '新密码', exact: true }).fill(pass);
     await page
@@ -77,7 +82,9 @@ try {
     'login-log',
     'operation-log',
   ]) {
-    await page.goto(`${base}/${name.endsWith('log') ? 'log' : 'system'}/${name}`);
+    await page.goto(
+      `${base}/${name.endsWith('log') ? 'log' : 'system'}/${name}`,
+    );
     await page.locator('.vxe-table').first().waitFor();
     await page.waitForTimeout(900);
     console.log(

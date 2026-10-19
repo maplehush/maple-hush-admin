@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,7 @@ import java.util.List;
  * Against an isolated, empty MySQL schema; opt in with T03_IT_ENABLED=true.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T03_IT_ENABLED", matches = "true")
 class SystemMigrationIT {
     @MockitoBean private BootstrapGuard bootstrapGuard;

@@ -44,12 +44,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * 真实 MySQL、Redis 和 HTTP；在隔离开发库中以 T04_IT_ENABLED=true 显式启用
+ * 真实 MySQL、Redis 和 HTTP；在隔离测试库中以 T04_IT_ENABLED=true 显式启用
  */
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T04_IT_ENABLED", matches = "true")
 class AuthFlowIT {
     @LocalServerPort private int port;
@@ -354,7 +354,7 @@ class AuthFlowIT {
                 HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
                         .timeout(Duration.ofSeconds(10));
         if ("POST".equals(method)) {
-            request.header("Origin", "http://127.0.0.1:" + port);
+            request.header("Origin", TestOrigin.allowed(port));
         }
         if (token != null) {
             request.header("Authorization", "Bearer " + token);

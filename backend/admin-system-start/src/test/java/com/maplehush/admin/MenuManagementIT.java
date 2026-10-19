@@ -42,7 +42,7 @@ import java.util.concurrent.Executors;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T07_IT_ENABLED", matches = "true")
 class MenuManagementIT {
     private static final String SCHEMA =

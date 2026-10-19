@@ -56,7 +56,7 @@ import java.util.UUID;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = "maple-hush.auth.bootstrap-enabled=true")
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T12_IT_ENABLED", matches = "true")
 class LogManagementIT {
     private static final String SCHEMA =

@@ -25,7 +25,7 @@ import java.time.Duration;
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {"maple-hush.auth.bootstrap-enabled=true", "spring.data.redis.port=1"})
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "T04_IT_ENABLED", matches = "true")
 class RedisUnavailableIT {
     @LocalServerPort private int port;
@@ -51,7 +51,7 @@ class RedisUnavailableIT {
         HttpRequest loginRequest =
                 HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/auth/login"))
                         .header("Content-Type", "application/json")
-                        .header("Origin", "http://127.0.0.1:" + port)
+                        .header("Origin", TestOrigin.allowed(port))
                         .POST(
                                 HttpRequest.BodyPublishers.ofString(
                                         "{\"username\":\"admin\",\"password\":\"wrong\","
@@ -124,7 +124,7 @@ class RedisUnavailableIT {
                 var response =
                         client.send(
                                 HttpRequest.newBuilder(URI.create(base + "/api/auth/" + path))
-                                        .header("Origin", base)
+                                        .header("Origin", TestOrigin.allowed(port))
                                         .header("Cookie", "mh_refresh=" + raw + "; " + cookie)
                                         .header("X-XSRF-TOKEN", token)
                                         .POST(HttpRequest.BodyPublishers.noBody())
