@@ -17,7 +17,7 @@ vi.mock('@vben/locales', () => ({
 }));
 
 describe('antdv-next form adapter', () => {
-  it('keeps VbenTiptap on the standard Vue model protocol', async () => {
+  it('uses the wrapper model protocol for rich text and uploads', async () => {
     await initSetupVbenForm();
 
     expect(mocks.setupVbenForm).toHaveBeenCalledWith(
@@ -25,6 +25,7 @@ describe('antdv-next form adapter', () => {
         config: expect.objectContaining({
           modelPropNameMap: expect.objectContaining({
             RichEditor: 'modelValue',
+            Upload: 'modelValue',
           }),
         }),
       }),

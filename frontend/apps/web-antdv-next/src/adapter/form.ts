@@ -15,14 +15,14 @@ async function initSetupVbenForm() {
       // ant design vue组件库默认都是 v-model:value
       baseModelPropName: 'value',
 
-      // 一些组件是 v-model:checked 或者 v-model:fileList
+      // 一些组件使用 v-model:checked；包装组件使用 v-model:modelValue
       modelPropNameMap: {
         Checkbox: 'checked',
         Radio: 'checked',
         // VbenTiptap uses Vue's standard modelValue/update:modelValue pair.
         RichEditor: 'modelValue',
         Switch: 'checked',
-        Upload: 'fileList',
+        Upload: 'modelValue',
       },
     },
     rules: {

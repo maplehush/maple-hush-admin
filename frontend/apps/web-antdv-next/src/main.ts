@@ -26,6 +26,9 @@ async function initApplication() {
       enableRefreshToken: true,
       loginExpiredMode: 'page',
     },
+    widget: {
+      notification: false,
+    },
   });
 
   // 启动应用并挂载

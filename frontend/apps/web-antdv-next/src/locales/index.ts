@@ -87,6 +87,9 @@ async function loadAntdLocale(lang: SupportedLanguagesType) {
       antdLocale.value = antdDefaultLocale;
       break;
     }
+    default: {
+      antdLocale.value = antdEnLocale;
+    }
   }
 }
 

@@ -91,7 +91,6 @@ export function useFormSchema(
       fieldName: 'avatar',
       label: '头像',
       formItemClass: 'items-start',
-      modelPropName: 'modelValue',
       help: '支持 JPG、PNG、WebP，最大 2 MB',
       componentProps: () => ({
         accept: '.jpg,.jpeg,.png,.webp',
