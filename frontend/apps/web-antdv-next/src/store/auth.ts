@@ -131,6 +131,12 @@ export const useAuthStore = defineStore('auth', () => {
       );
     }
   }
+  async function completePasswordChange() {
+    // 后端已撤销所有 refresh 会话并清除 Cookie；此处只清浏览器 access。
+    session.invalidate();
+    clearIdentity();
+    await router.replace('/auth/login');
+  }
   function $reset() {
     loginLoading.value = false;
     passwordChangeToken.value = null;
@@ -139,6 +145,7 @@ export const useAuthStore = defineStore('auth', () => {
     $reset,
     authLogin,
     changeInitialPassword,
+    completePasswordChange,
     fetchUserInfo,
     initializeSession,
     loadIdentity,

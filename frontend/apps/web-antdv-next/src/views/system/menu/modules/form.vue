@@ -38,11 +38,6 @@ const componentKeys = [
   '/system/dict/list',
   '/system/login-log/list',
   '/system/operation-log/list',
-  '/dashboard/workspace/index',
-  '/dashboard/analytics/index',
-  '/_core/profile/index',
-  '/_core/about/index',
-  '/demos/antd/index',
 ];
 
 import { getMenuTypeOptions } from '../data';
