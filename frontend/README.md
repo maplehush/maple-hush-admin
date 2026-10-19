@@ -53,3 +53,7 @@ pnpm --filter @vben/web-antdv-next build
 前端基于 [Vue Vben Admin](https://github.com/vbenjs/vue-vben-admin)，迁入版本为提交 `151d80f9e5fb63f2ed8a8c432e1adf2eba253271`，组件使用方式可参考 [Vben 官方文档](https://doc.vben.pro/)。
 
 原项目采用 MIT 许可证，保留原有 [LICENSE](./LICENSE) 及版权声明。
+
+## 独立容器部署
+
+前端独立 Compose 入口、TLS 网关示例和参数说明见 [部署说明](./scripts/deploy/README.md)。仅启动 frontend，需要可访问的已部署后端；浏览器仍请求同源 /api。T19 本地验证通过，Docker 容器与公网 HTTPS 完整认证验收待补，具体记录见 [T19 任务卡](../开发文档/任务拆解/T19-前端镜像与独立部署.md)。
