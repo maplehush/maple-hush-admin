@@ -10,3 +10,5 @@
 - JavaDoc 统一使用多行格式；实体、DTO/VO 组件、公共常量/错误码与 Service 契约补充有效业务说明。所有条件和循环的语句体必须写大括号，非空块按行展开；简单一次性逻辑优先留在 Service 私有方法，`support/` 仅承载复杂或复用的功能内辅助逻辑。
 
 - T18 后端独立部署入口为 [deploy/README.md](./deploy/README.md)，使用本目录 Dockerfile、docker-compose.yml 和 .env.example；MySQL/Redis 不发布端口，后端仅映射回环地址。运行密钥通过 Compose secrets 与 Spring configtree 读取；不把密码、OSS Key 放入镜像或构建参数。容器/TLS 验收尚待可用 Docker 引擎与域名证书，实际状态见 [T18 任务卡](../开发文档/任务拆解/T18-后端镜像与独立部署.md)。
+
+- T20 根 include 使用 [根覆盖文件](../deploy/compose/backend-root.yml)调整构建/Redis 脚本路径并移除后端宿主机端口；根 SECRETS_DIR 从仓库根解析，独立后端配置仍按 backend/ 解析。部署模型切换不自动迁移卷数据，实际验收状态见 [T20 任务卡](../开发文档/任务拆解/T20-仓库根目录一键部署.md)。

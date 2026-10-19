@@ -70,7 +70,7 @@ T0 已按原约定把原始工程放在工作空间根目录；T01 迁入后，�
 
 `Dockerfile` 负责构建单个服务的镜像；`docker-compose.yml` 负责把镜像、容器、网络、卷和启动关系编排起来，两者职责不同。Docker 官方现在优先称 `compose.yaml`，同时仍支持 `docker-compose.yml`；为与本项目参考的 [JeecgBoot 根目录文件](https://github.com/jeecgboot/JeecgBoot/blob/main/docker-compose.yml)及团队习惯一致，本项目统一使用 **`docker-compose.yml`**，不同时保留两种文件名。[Docker Compose 文件名说明](https://docs.docker.com/compose/intro/compose-application-model/)。
 
-`backend/docker-compose.yml` 管后端、MySQL 与 Redis，也可在开发时只启动 MySQL 和 Redis；`frontend/docker-compose.yml` 管静态站点，使用可配置的后端 upstream；根 `docker-compose.yml` 通过 Compose `include` 组合两者并设置内部 upstream，避免复制一整套服务定义。要求 Docker Compose **2.20.0+**，实施时用 `docker compose config` 检查合并后的服务、变量和端口。[Docker Compose include 说明](https://docs.docker.com/reference/compose-file/include/)。前端独立部署仍需指向一个已可访问的后端 API；后端独立部署需要为公开 API 准备 TLS 入口。根部署时只由前端网关公开 HTTPS，MySQL 和 Redis 不公开。
+`backend/docker-compose.yml` 管后端、MySQL 与 Redis，也可在开发时只启动 MySQL 和 Redis；`frontend/docker-compose.yml` 管静态站点，使用可配置的后端 upstream；根 `docker-compose.yml` 通过 Compose `include` 组合两者并设置内部 upstream，避免复制一整套服务定义。要求 Docker Compose **2.24.4+**（根覆盖文件使用 `!override`），实施时用 `docker compose config` 检查合并后的服务、变量和端口。[Docker Compose include 说明](https://docs.docker.com/reference/compose-file/include/)。前端独立部署仍需指向一个已可访问的后端 API；后端独立部署需要为公开 API 准备 TLS 入口。根部署时只由前端网关公开 HTTPS，MySQL 和 Redis 不公开。
 
 子项目 Compose 不写固定 `container_name` 或相同的顶层项目名，让独立部署与根目录组合部署各自获得独立的容器/卷命名空间；端口与域名通过环境变量配置。实施时分别检查三种模式的 `docker compose config` 输出。
 
@@ -94,7 +94,7 @@ T0 已按原约定把原始工程放在工作空间根目录；T01 迁入后，�
 ## 1. 锁定基线和开发环境
 
 1. T01 在开发工作空间根目录建立 `maple-hush-admin/` 和项目自己的 Git；T0 后端直接移动为 `backend/`，用户在 T01 重新提供的 Vben 官方完整仓库直接移动为 `frontend/`，避免嵌套上游 `.git`。按上述映射分类迁入设计文档。以新 Vben 提交重新核对 API、路由和部署脚本并更新设计，**从一开始就在 `apps/web-antdv-next` 开发**。T01 移除其他四个 UI 应用并更新根脚本/锁文件；`playground/` 在整个系统开发完成前留作演示参考，之后再删除并验证构建。
-2. 安装 Java 21、Git、Docker Engine/Compose 2.20.0+；后端保留 Spring Initializr 生成的 Maven Wrapper。前端 Node/pnpm 版本以 T0 确认的实际 `package.json` 和锁文件为准；本设计参考提交当时要求 Node `^22.18.0 || ^24.12.0`、pnpm `11.16.0`，不得直接套用到新拉取的代码。IDEA 分别导入 `backend/pom.xml` 和 `frontend/`，Maven Runner JDK 设为 21。
+2. 安装 Java 21、Git、Docker Engine/Compose 2.24.4+；后端保留 Spring Initializr 生成的 Maven Wrapper。前端 Node/pnpm 版本以 T0 确认的实际 `package.json` 和锁文件为准；本设计参考提交当时要求 Node `^22.18.0 || ^24.12.0`、pnpm `11.16.0`，不得直接套用到新拉取的代码。IDEA 分别导入 `backend/pom.xml` 和 `frontend/`，Maven Runner JDK 设为 21。
 3. 在 `frontend/` 执行 `pnpm install --frozen-lockfile`、`pnpm dev:antdv-next`，先确认未经改造的目标应用可启动。记录实际运行端口、构建产物目录和锁文件版本。
 4. 决定首版数据库 ID 类型、密码哈希算法、JWT 签名密钥加载方式、Cookie 域与生产域名；按架构设计落实东八区 `DATETIME` 秒级字段和接口时间格式，并验证应用与 MySQL 会话时区。这些选择进入后端配置和首版迁移，不留给各功能自行决定。
 
@@ -172,7 +172,7 @@ T0 已按原约定把原始工程放在工作空间根目录；T01 迁入后，�
 
 1. `backend/Dockerfile` 从 `backend/` 构建四模块工程的唯一可执行 Jar，运行阶段使用 Java 21 和非 root 用户；不复制源码、测试报告或密钥。`backend/docker-compose.yml` 包含 MySQL、Redis 与后端，MySQL 数据放命名卷，Redis 缓存可重建且端口不对公网发布；默认可将后端端口只绑定宿主机回环地址。若后端要单独对公网提供 API，用可选的 API 网关/TLS 配置发布域名，不能直接把明文 8080 暴露公网。
 2. **原位改造** `frontend/scripts/deploy/Dockerfile`、`nginx.conf` 和 `build-local-docker-image.sh`，以 `frontend/` 为构建上下文，锁定 Node/pnpm 版本，只构建 `@vben/web-antdv-next` 及其 workspace 依赖，运行镜像只含目标应用静态文件和 Nginx 配置。保留上游 SPA fallback；把 `/api` 代理改为可配置的后端 upstream，保持一个 `/api` 前缀。独立部署时 upstream 指向已发布的后端 HTTPS 域名；根目录统一部署时指向 Compose 内部的 `backend:8080`。生产 Web 使用同源 HTTPS 与 HTTP 跳转。
-3. `frontend/docker-compose.yml` 定义名为 `frontend` 的服务，使用上述原有目录中的 Dockerfile 构建；`backend/docker-compose.yml` 定义 `mysql`、`redis` 与 `backend`；根 `docker-compose.yml` 用 `include` 组合两份文件，并由根 `.env` 覆盖 `BACKEND_UPSTREAM` 为内部地址。子项目各有 `.env.example`，根目录也有 `.env.example`；样例列出非秘密的 `COMPOSE_PROJECT_NAME`，供同机多套部署时分别设置。统一部署不得同时启用后端独立部署的公网 API 网关，以免和前端的 80/443 端口冲突。`docker compose config` 必须确认最终项目名、服务名、端口、卷和构建路径正确。
+3. `frontend/docker-compose.yml` 定义名为 `frontend` 的服务，使用上述原有目录中的 Dockerfile 构建；`backend/docker-compose.yml` 定义 `mysql`、`redis` 与 `backend`；根 `docker-compose.yml` 用 `include` 组合两份文件，并由根专用覆盖文件固定 `BACKEND_UPSTREAM` 为内部地址。子项目各有 `.env.example`，根目录也有 `.env.example`；样例列出非秘密的 `COMPOSE_PROJECT_NAME`，供同机多套部署时分别设置。统一部署不得同时启用后端独立部署的公网 API 网关，以免和前端的 80/443 端口冲突。`docker compose config` 必须确认最终项目名、服务名、端口、卷和构建路径正确。
 4. 每个服务设置健康检查、重启策略与日志限制；后端用 `depends_on: condition: service_healthy` 等待 MySQL 和 Redis，而不是只等容器进程启动。[Docker Compose 启动顺序](https://docs.docker.com/compose/how-tos/startup-order)。前端容器可先启动，但整套部署只有在后端就绪且 `/api` 冒烟请求成功后才算完成。
 5. 后端提供 Actuator 健康端点，Compose 从容器内部探测。liveness 只代表应用自身存活，不检查 MySQL/Redis；readiness 显式检查两项首版必需依赖，避免服务尚不可用时接收新流量。Spring Boot 默认 readiness 指标不自动包含外部依赖，须明确配置与故障测试。[Spring Boot Actuator 健康端点](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html)。健康端点不对公网暴露详细内部信息。
 6. `.env.example` 只列域名、端口、镜像标签、默认数据库名 `maple_hush_admin`/用户名、Redis 地址/端口、upstream、`ADMIN_BOOTSTRAP_USERNAME=admin`、`ADMIN_BOOTSTRAP_ENABLED=false` 和 OSS 地域/Bucket/公开域名/Object Key 前缀等非秘密项；已提供的 OSS 值见[环境配置设计](../架构设计/Redis与环境配置.md#oss-头像配置)。后端 Compose 须将数据库名同时用于 MySQL 首次建库配置和后端数据源，并将两个引导变量传给应用。数据库和 Redis 密码、JWT 密钥、OSS RAM 凭证（若环境不能使用 RAM 角色）及 TLS 私钥放在各项目被 `.gitignore` 排除的 `secrets/` 或宿主机受控路径。Compose secret 会以文件挂载给被授权服务，后端须**明确实现从文件读取**，不能假定 `*_FILE` 环境变量会被 Spring 自动解析。[Docker Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/)。前后端各自的 `.dockerignore` 排除本地 `.env`、`secrets/` 与构建产物。OSS 是外部服务，不在 Compose 中增加存储容器；部署主机需能通过 HTTPS 访问选定的 OSS Endpoint。
@@ -182,7 +182,7 @@ T0 已按原约定把原始工程放在工作空间根目录；T01 迁入后，�
 
 ## 9. 首次部署：默认命令即可
 
-在服务器上完成一次性准备：安装 Docker Compose 2.20.0+、拉取项目、配置域名解析和 80/443 防火墙；按使用的入口复制对应 `.env.example` 为 `.env`；准备受控的数据库/Redis 密码、JWT 密钥、独立公共读头像 Bucket/最小权限写入凭证、头像公开访问域名和 TLS 证书文件，设置文件权限。首次空库部署前确认 `ADMIN_BOOTSTRAP_USERNAME`，将后端的 `ADMIN_BOOTSTRAP_ENABLED` 显式设为 `true`，引导创建的超级管理员临时密码为 `12345678`。首次登录被强制改密，改密后回登录页；完成后将开关改回 `false` 并重新应用配置。开关关闭而数据库意外变为空库时，启动明确失败。证书的申请/续期机制应在上线前选定并演练。
+在服务器上完成一次性准备：安装 Docker Compose 2.24.4+、拉取项目、配置域名解析和 80/443 防火墙；按使用的入口复制对应 `.env.example` 为 `.env`；准备受控的数据库/Redis 密码、JWT 密钥、独立公共读头像 Bucket/最小权限写入凭证、头像公开访问域名和 TLS 证书文件，设置文件权限。首次空库部署前确认 `ADMIN_BOOTSTRAP_USERNAME`，将后端的 `ADMIN_BOOTSTRAP_ENABLED` 显式设为 `true`，引导创建的超级管理员临时密码为 `12345678`。首次登录被强制改密，改密后回登录页；完成后将开关改回 `false` 并重新应用配置。开关关闭而数据库意外变为空库时，启动明确失败。证书的申请/续期机制应在上线前选定并演练。
 
 后端通过 `SPRING_PROFILES_ACTIVE` 显式选择环境：开发用 `dev`，测试和预发布用 `test`，生产用 `prod`。开发 Compose 为 `dev` 注入 `MYSQL_HOST=mysql` 与 `REDIS_HOST=redis`；测试和生产分别注入独立的数据库、Redis 地址、库名和密钥，不复用开发默认值。
 
@@ -211,7 +211,7 @@ docker compose up -d --build
 
 后端服务依赖 `mysql` 和 `redis`，从根目录选择 `backend` 会确保两项依赖启动；`frontend` 不强制依赖后端，选择 `frontend` 不会顺带启动后端。只部署前端时，后端应已运行，或把根 `.env` 中的 upstream 指向外部已部署的 API；否则页面 `/api` 暂不可用。[Docker Compose 按服务启动](https://docs.docker.com/reference/cli/docker/compose/up/)。
 
-根文件使用 `include` 装配子项目 Compose；后端完成 MySQL/Redis 健康等待、Flyway 迁移和首次引导，前端提供统一 HTTPS 入口。一起部署时根 `.env` 设 `BACKEND_UPSTREAM=http://backend:8080`。`build.context` 在各子项目 Compose 中相对于其自身目录解析；首次部署要按环境设置足够的健康检查启动宽限期。上线前在相应目录运行 `docker compose config`，核对变量、服务和端口。
+根文件使用 `include` 装配子项目 Compose；后端完成 MySQL/Redis 健康等待、Flyway 迁移和首次引导，前端提供统一 HTTPS 入口。一起部署时根覆盖文件固定 `BACKEND_UPSTREAM=http://backend:8080`。独立模式的 `build.context` 相对各子目录解析；根 include 显式将路径基准设为仓库根，并覆盖 context/Redis 脚本路径，根密钥目录也从仓库根解析；首次部署要按环境设置足够的健康检查启动宽限期。上线前在相应目录运行 `docker compose config`，核对变量、服务和端口。
 
 接着逐项验收：
 
@@ -237,3 +237,7 @@ docker compose logs --tail=100 backend
 - [ ] 首次引导需显式开启，超级管理员、新建用户和重置用户的临时密码均为 `12345678` 且首次必须改密；正式密码、JWT/数据库密钥和 OSS AccessKey 不在 Git、镜像、日志或前端产物里；本人头像可上传到独立的公共读 OSS Bucket，数据库保存长期 HTTPS URL。
 - [ ] `frontend/`、`backend/` 各自可用 `docker compose up -d --build` 部署；仓库根目录同一命令可部署全套，追加 `frontend` 或 `backend` 可单独部署或更新一侧。
 - [ ] HTTPS、健康检查、数据持久化、备份恢复、升级和回滚演练完成。
+
+### T20 实际状态（2026-10-19）
+
+根编排配置与统一说明已交付，见 [deploy/README.md](../../deploy/README.md)。三目录解析和两项目隔离参数核对通过；本机无 Docker 引擎，三个 up 入口实际尝试均失败，未认定容器/TLS 部署验收通过。历史设计示例不替代 [T20 执行记录](./T20-仓库根目录一键部署.md#执行记录2026-10-19)。T21 仍需用户单独发起。

@@ -2,9 +2,11 @@
 
 - Git 远程 `origin` 为 `https://github.com/maplehush/maple-hush-admin.git`，仓库根目录是 `D:\maple-hush-workspace\maple-hush-admin`。`main` 为主分支，`develop` 为日常开发分支；后续开发默认在 `develop` 进行，合入 `main` 按用户指令执行。
 
-本仓库包含 `frontend/` Vben workspace、`backend/` Spring Boot 工程和 `开发文档/`。先读[文档首页](./开发文档/index.md)、[总体架构](./开发文档/架构设计/总体架构.md)及[任务索引](./开发文档/任务拆解/README.md)。T0～T16 已实施；T17 本地功能回归通过，真实 OSS Bucket 验收仍由用户测试，镜像前门槛尚未整体通过。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20～T21 未实施。目录示例和任务卡不表示后续功能已经实现。
+本仓库包含 `frontend/` Vben workspace、`backend/` Spring Boot 工程和 `开发文档/`。先读[文档首页](./开发文档/index.md)、[总体架构](./开发文档/架构设计/总体架构.md)及[任务索引](./开发文档/任务拆解/README.md)。T0～T16 已实施；T17 本地功能回归通过，真实 OSS Bucket 验收仍由用户测试，镜像前门槛尚未整体通过。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20 已交付根目录四服务 include 编排，三目录配置与两套隔离参数解析通过；本机无 Docker 引擎，整体/单侧容器与 HTTPS 验收待补。T21 未实施。目录示例和任务卡不表示后续功能已经实现。
 
 - 用户按 T0～T21 逐项发起实施任务。实施前读对应任务卡和相关设计，只实现本轮范围；发现实际源码与文档不同时，同轮修订架构、接口契约和任务卡。
 - 前后端接口以[接口契约](./开发文档/接口契约/前后端接口契约.md)为协作入口；改动路径、字段、错误码、权限码或 Cookie 流程时同步更新。数据库与授权的权威约定见总体架构，Java 目录和依赖见[后端项目结构](./开发文档/架构设计/后端项目结构.md)。
 - 前端具体命令、目标应用和 Vben 约束见[frontend/AGENTS.md](./frontend/AGENTS.md)；后端 Java、Maven 和配置约束见[backend/AGENTS.md](./backend/AGENTS.md)。不要把后端 Java 规范套用到前端。
 - `dev` 的 MySQL 默认账号/密码为 `root/123456`，Redis 默认密码为 `123456`，可由环境变量覆盖；这是用户明确允许提交的本地开发例外。`test/prod` 凭据从受控运行环境读取；不提交真实环境的 `.env`、密钥或 OSS AccessKey。未经实际运行的构建、测试、迁移和部署不得写成通过；每轮记录命令、结果及未完成项。
+
+- T20 根部署入口是 [deploy/README.md](./deploy/README.md)，需要 Compose 2.24.4+；根 include 的相对路径统一以仓库根为准，SECRETS_DIR 也从根解析。子目录 Compose 保持独立语义，根覆盖文件仅修改路径、关闭后端宿主机端口并固定内部 upstream。只启动 frontend 不会自动启动 backend；整体/单侧容器与 HTTPS 验收尚待补齐，不能把配置解析写成部署通过。

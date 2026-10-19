@@ -1,6 +1,6 @@
 # Maple Hush Admin
 
-基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台，已实现登录认证、动态权限、个人资料，以及用户、角色、菜单、部门、字典和日志管理。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建，已完成 T0～T16；T17 本地回归通过，真实 OSS 验收由用户执行。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20～T21 未实施。
+基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台，已实现登录认证、动态权限、个人资料，以及用户、角色、菜单、部门、字典和日志管理。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建，已完成 T0～T16；T17 本地回归通过，真实 OSS 验收由用户执行。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20 已交付根目录四服务 include 编排，三目录配置与两套隔离参数解析通过；本机无 Docker 引擎，整体/单侧容器与 HTTPS 验收待补。T21 未实施。
 
 仓库地址为 `https://github.com/maplehush/maple-hush-admin.git`。`main` 为主分支，日常开发使用 `develop` 分支。
 
@@ -36,3 +36,7 @@ pnpm dev:antdv-next
 不要提交凭据或将演示账号用于产品部署。构建、数据库和部署状态以每张任务卡的实际执行记录为准。
 
 后端独立容器部署的配置、密钥初始化和验收步骤见 [后端部署说明](./backend/deploy/README.md)。当前本地打包与配置解析通过，Docker 容器实际验收待补，不能据此视为已上线。
+
+## 根目录统一部署
+
+复制根 .env.example、准备受控密钥和环境参数后，可在根目录执行 docker compose up -d --build；单侧更新支持 frontend 或 backend 服务名。根配置复用两个子项目，最终四服务，公开 HTTPS 使用既有前端 TLS 网关。完整命令、首次引导、单侧含义和两套部署隔离见 [统一部署说明](./deploy/README.md)。T20 已完成配置核对，实际容器/HTTPS 验收待补。

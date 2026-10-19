@@ -1,0 +1,12 @@
+# Requires Docker Compose 2.24.4+ (!override in included overlays).
+include:
+  - path:
+      - ./backend/docker-compose.yml
+      - ./deploy/compose/backend-root.yml
+    project_directory: .
+    env_file: ./deploy/compose/include.env
+  - path:
+      - ./frontend/docker-compose.yml
+      - ./deploy/compose/frontend-root.yml
+    project_directory: .
+    env_file: ./deploy/compose/include.env

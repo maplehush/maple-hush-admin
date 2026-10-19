@@ -28,7 +28,7 @@ Windows 可在 PowerShell 使用 `Copy-Item .env.example .env`，其余 Docker �
 
 `TRUSTED_PROXY_CIDR` 是前端 Nginx 实际看到的网关 IPv4 地址范围，默认 `127.0.0.1/32` 仅信容器内回环。确认宿主机网关在容器中的真实连接 IP 后设为准确 `/32`；不要直接信任所有网段。只有来自受信地址的 X-Forwarded-For / X-Forwarded-Proto 会生效；网关必须覆盖客户端传入头部。前端再覆盖传给后端的转发头，不追加任意客户端伪造链。后端是否采用这些头仍由 T18 的 `SERVER_FORWARD_HEADERS_STRATEGY` 和精确代理信任配置控制；若中间还有独立 API 网关，需要逐跳核对其覆盖规则，不能假定真实 IP 自动穿透。
 
-`BACKEND_UPSTREAM` 与 `TRUSTED_PROXY_CIDR` 是运行时配置，启动时只替换模板中的这两个占位符，保留 `$uri` 等 Nginx 变量；修改后执行 `docker compose up -d --wait` 重建容器即可，无需重编前端。Nginx 在启动时解析上游域名；上游 IP 变化后需要重建/重载本服务，不能假定配置提供动态 DNS 刷新。
+`BACKEND_UPSTREAM` 与 `TRUSTED_PROXY_CIDR` 是运行时配置，启动时只替换模板中的这两个占位符，保留 `$uri` 等 Nginx 变量；修改后执行 `docker compose up -d --wait` 重建容器即可，无需重编前端。T20 补充：Nginx 通过 Compose 网络内的 Docker DNS（127.0.0.11）解析运行时上游，缓存有效期 5 秒；后端重建换 IP 后可重新解析，避免前端持续使用旧地址。独立模式的外部域名同样通过 Docker DNS 解析；该配置面向 Compose 容器网络，不能直接套给宿主机原生 Nginx。
 
 ## 构建、健康与升级
 

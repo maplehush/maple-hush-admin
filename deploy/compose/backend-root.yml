@@ -1,0 +1,9 @@
+# Paths resolve from the root project's explicitly selected project_directory.
+services:
+  backend:
+    build:
+      context: ./backend
+    ports: !reset []
+  redis:
+    volumes: !override
+      - ./backend/deploy/redis-start.sh:/usr/local/etc/redis/start.sh:ro

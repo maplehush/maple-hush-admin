@@ -15,3 +15,5 @@
 - 表单控件已注册时，直接使用 useVbenForm schema 的 component（包括 Upload）及 componentProps/customRequest；不要用 Input 占位再手写同类控件插槽。模型绑定以目标适配器实际 emits/props 为准，不能把底层原生组件协议直接套在包装组件上。
 
 - T19 部署入口为 [scripts/deploy/README.md](./scripts/deploy/README.md)，原位维护官方 Dockerfile/nginx.conf/build-local-docker-image.sh。构建固定目标应用并保留 workspace 依赖；运行时只复制目标 dist。Compose 只有 frontend，BACKEND_UPSTREAM 是不带 /api 的已部署后端 Origin，浏览器地址仍为 /api；不得把运行时 upstream 写进 VITE_。非 root Nginx 的所有临时目录在 /tmp，TLS 由既有网关终止。容器/HTTPS 完整认证仍待实际验收，不得据本地检查声称已部署成功。
+
+- T20 根 include 使用 [根覆盖文件](../deploy/compose/frontend-root.yml)调整构建路径并固定 http://backend:8080；独立 frontend/docker-compose.yml 仍指向已部署后端。根模式参数和单侧启动语义见 [统一部署说明](../deploy/README.md)，不把子目录独立模式当作根项目更新。

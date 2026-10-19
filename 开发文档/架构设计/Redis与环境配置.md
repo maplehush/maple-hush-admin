@@ -115,3 +115,9 @@ Redis 使用 `{key-prefix}:file_upload:{uploadId}` 保存随机标识对应的�
 [前端 Compose](../../frontend/docker-compose.yml)只有 frontend，不启动其他数据服务。BACKEND_UPSTREAM 是可达后端 Origin（不带 /api），由非 root Nginx 启动时渲染；浏览器始终使用同源 /api，运行时上游不进入前端公开应用配置。前端端口默认仅回环 8090，生产由已有 HTTPS 网关提供入口。TRUSTED_PROXY_CIDR 只应填写实际网关 IPv4 地址范围，默认仅信容器回环；后端仍独立控制是否信任转发头。AUTH_ALLOWED_ORIGINS 须配置前端公开 Origin，test/prod 保留 Secure Cookie。
 
 前端 healthz 仅检查静态服务存活，不能代替 MySQL/Redis/后端 readiness。构建使用仓库 pnpm 锁文件与完整依赖，运行层只复制目标 dist。T19 的容器与公网 HTTPS 完整认证验收待补，参数、网络边界和命令以 [前端部署说明](../../frontend/scripts/deploy/README.md)为准；T20 根统一编排尚未实施。
+
+## T20 根部署环境与隔离
+
+根 .env.example 提供统一参数，SECRETS_DIR 从仓库根解析；独立 backend/ 模式仍从 backend/ 解析。根 include 显式使用固定的非秘密 include.env，不载入子目录 .env。每套项目分配独立 COMPOSE_PROJECT_NAME、前端端口、受控密钥目录、Redis 前缀及 OSS Bucket/对象前缀，MySQL 卷与默认网络由 Compose 自动附加项目名前缀。
+
+根 frontend upstream 固定为 http://backend:8080；backend/mysql/redis 无宿主机端口，前端只发布回环 HTTP 供已有 TLS 网关连接。根/子模式不会自动共享或迁移 MySQL 卷；不通过删除卷切换配置。参数和命令见 [统一部署说明](../../deploy/README.md)；两套配置隔离已核对，实际容器数据隔离与故障/重建仍待 T20 验收。

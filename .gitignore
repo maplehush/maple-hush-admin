@@ -13,6 +13,8 @@
 !frontend/playground/.env.analyze
 *.pem
 *.key
+secrets/
+certs/
 
 # Build and editor output
 **/node_modules/

@@ -1,0 +1,7 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      # Root mode always uses its own backend, not a standalone environment value.
+      BACKEND_UPSTREAM: http://backend:8080
