@@ -1,6 +1,8 @@
 # Maple Hush Admin
 
-基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台，已实现登录认证、动态权限、个人资料，以及用户、角色、菜单、部门、字典和日志管理。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建，已完成 T0～T16；T17 本地回归通过，真实 OSS 验收由用户执行。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20 已交付根目录四服务 include 编排，三目录配置与两套隔离参数解析通过；本机无 Docker 引擎，整体/单侧容器与 HTTPS 验收待补。T21 未实施。
+项目 CI 位于 [根工作流](./.github/workflows/ci.yml)，覆盖 main/develop 的提交及 PR；检查范围与最新优化见[前后端优化记录](./开发文档/任务拆解/2026-10-22-前后端优化.md)。
+
+基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台，已实现登录认证、动态权限、个人资料，以及用户、角色、菜单、部门、字典和日志管理。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建，已完成 T0～T16；T17 本地回归通过，真实 OSS 验收由用户执行。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20 已交付根目录四服务 include 编排，三目录配置与两套隔离参数解析通过；本机无 Docker 引擎，整体/单侧容器与 HTTPS 验收待补。T21 已完成本机原生隔离演练并交付运维脚本/说明；Docker 容器、异机恢复、镜像回退及公网验收仍待补，尚未上线。
 
 仓库地址为 `https://github.com/maplehush/maple-hush-admin.git`。`main` 为主分支，日常开发使用 `develop` 分支。
 
@@ -40,3 +42,7 @@ pnpm dev:antdv-next
 ## 根目录统一部署
 
 复制根 .env.example、准备受控密钥和环境参数后，可在根目录执行 docker compose up -d --build；单侧更新支持 frontend 或 backend 服务名。根配置复用两个子项目，最终四服务，公开 HTTPS 使用既有前端 TLS 网关。完整命令、首次引导、单侧含义和两套部署隔离见 [统一部署说明](./deploy/README.md)。T20 已完成配置核对，实际容器/HTTPS 验收待补。
+
+## 运维与本地演练
+
+[运维交接](./deploy/ops/README.md)提供备份、隔离恢复、升级/回退、原超管离线恢复、健康与证书处理步骤。T21 本机原生 HTTPS、会话、Redis 重启、MySQL 备份恢复和超管恢复已演练；实际 Docker/异机/镜像回退/公网条件仍待验证，见 [T21 记录](./开发文档/任务拆解/T21-上线演练与运维交接.md#执行记录2026-10-19)。

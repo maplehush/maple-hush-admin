@@ -28,7 +28,7 @@ public interface ISysUserService {
 
     /**
      * 创建必须改密的普通账号
-     * @param dto 账号、资料及可选角色表单
+     * @param dto 账号、资料及至少包含一个普通角色的表单
      * @return 新建用户 ID
      * @throws BusinessException 账号唯一性、部门、角色或授权范围不满足要求
      */

@@ -1,7 +1,7 @@
 package com.maplehush.admin.system.auth.service.impl;
 
-import cn.hutool.captcha.CaptchaUtil;
 import cn.hutool.captcha.LineCaptcha;
+import cn.hutool.captcha.generator.RandomGenerator;
 
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
@@ -15,6 +15,18 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.font.FontRenderContext;
+import java.awt.font.GlyphVector;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
@@ -22,12 +34,28 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 验证码、固定窗口限流和登录快照都使用带环境前缀的 Redis 键
  */
 @Service
 public class AuthRedisServiceImpl implements IAuthRedisService {
+    /**
+     * 验证码字符、画布大小和干扰强度的统一配置
+     */
+    private static final int CAPTCHA_WIDTH = 160;
+    private static final int CAPTCHA_HEIGHT = 56;
+    private static final int CAPTCHA_CODE_LENGTH = 4;
+    private static final int CAPTCHA_INTERFERENCE_LINES = 12;
+    private static final String CAPTCHA_CHARACTERS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final Color[] CAPTCHA_COLORS = {
+        new Color(36, 113, 185),
+        new Color(222, 145, 31),
+        new Color(196, 76, 104),
+        new Color(51, 143, 105),
+        new Color(117, 99, 176)
+    };
     private static final DefaultRedisScript<String> TAKE =
             new DefaultRedisScript<>(
                     "local v=redis.call('GET',KEYS[1]); if v then redis.call('DEL',KEYS[1]); end; return v",
@@ -55,7 +83,7 @@ public class AuthRedisServiceImpl implements IAuthRedisService {
     @Override
     public Captcha issueCaptcha(String ip) {
         checkLimit("captcha_ip", AuthDigests.digest(ip), 10, 60);
-        LineCaptcha image = CaptchaUtil.createLineCaptcha(160, 50, 4, 80);
+        LineCaptcha image = new ColorfulOutlineCaptcha();
         String id = UUID.randomUUID().toString().replace("-", "");
         try {
             redis.opsForValue()
@@ -177,5 +205,85 @@ public class AuthRedisServiceImpl implements IAuthRedisService {
 
     private static BusinessException unavailable(RuntimeException cause) {
         return new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "服务暂不可用，请稍后重试");
+    }
+
+    /**
+     * 绘制彩色描边、轻微倾斜的字符验证码，降低线条对字符辨认的干扰。
+     */
+    private static final class ColorfulOutlineCaptcha extends LineCaptcha {
+        private ColorfulOutlineCaptcha() {
+            super(
+                    CAPTCHA_WIDTH,
+                    CAPTCHA_HEIGHT,
+                    new RandomGenerator(CAPTCHA_CHARACTERS, CAPTCHA_CODE_LENGTH),
+                    CAPTCHA_INTERFERENCE_LINES);
+        }
+
+        @Override
+        public Image createImage(String code) {
+            BufferedImage image =
+                    new BufferedImage(CAPTCHA_WIDTH, CAPTCHA_HEIGHT, BufferedImage.TYPE_INT_RGB);
+            Graphics2D graphics = image.createGraphics();
+            try {
+                graphics.setRenderingHint(
+                        RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                graphics.setRenderingHint(
+                        RenderingHints.KEY_TEXT_ANTIALIASING,
+                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                graphics.setColor(Color.WHITE);
+                graphics.fillRect(0, 0, CAPTCHA_WIDTH, CAPTCHA_HEIGHT);
+                drawInterferenceLines(graphics);
+                drawCharacters(graphics, code);
+            } finally {
+                graphics.dispose();
+            }
+            return image;
+        }
+
+        private void drawInterferenceLines(Graphics2D graphics) {
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            graphics.setStroke(
+                    new BasicStroke(0.7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            for (int index = 0; index < CAPTCHA_INTERFERENCE_LINES; index++) {
+                Color color = CAPTCHA_COLORS[index % CAPTCHA_COLORS.length];
+                graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 48));
+                graphics.drawLine(
+                        random.nextInt(CAPTCHA_WIDTH),
+                        random.nextInt(CAPTCHA_HEIGHT),
+                        random.nextInt(CAPTCHA_WIDTH),
+                        random.nextInt(CAPTCHA_HEIGHT));
+            }
+        }
+
+        private void drawCharacters(Graphics2D graphics, String code) {
+            Font font = new Font(Font.SANS_SERIF, Font.BOLD, 37);
+            FontRenderContext context = graphics.getFontRenderContext();
+            int slotWidth = CAPTCHA_WIDTH / code.length();
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            int colorOffset = random.nextInt(CAPTCHA_COLORS.length);
+
+            for (int index = 0; index < code.length(); index++) {
+                char[] character = {code.charAt(index)};
+                GlyphVector glyphVector = font.createGlyphVector(context, character);
+                Shape glyph = glyphVector.getOutline();
+                Rectangle2D bounds = glyph.getBounds2D();
+                double x = index * slotWidth + (slotWidth - bounds.getWidth()) / 2 - bounds.getX();
+                double y = (CAPTCHA_HEIGHT - bounds.getHeight()) / 2 - bounds.getY();
+                double angle = random.nextDouble(-0.16, 0.16);
+                double verticalOffset = random.nextDouble(-2.0, 2.0);
+                AffineTransform originalTransform = graphics.getTransform();
+
+                graphics.translate(x, y + verticalOffset);
+                graphics.rotate(angle, bounds.getCenterX(), bounds.getCenterY());
+                Color color = CAPTCHA_COLORS[(index + colorOffset) % CAPTCHA_COLORS.length];
+                graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 28));
+                graphics.fill(glyph);
+                graphics.setStroke(
+                        new BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                graphics.setColor(color);
+                graphics.draw(glyph);
+                graphics.setTransform(originalTransform);
+            }
+        }
     }
 }

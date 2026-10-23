@@ -76,9 +76,38 @@ public class PermissionGraph {
                 }
             }
         }
+        addDefaultWorkspace(menus, nodes, visible);
         Set<String> paths = new HashSet<>();
         visible.forEach(id -> paths.add(fullPath(nodes.get(id), nodes)));
         return new Resolved(Set.copyOf(codes), routes(null, menus, visible, paths));
+    }
+
+    /** Adds the signed-in user's baseline workspace route without granting a role permission. */
+    private void addDefaultWorkspace(
+            List<SysMenu> menus, Map<Long, SysMenu> nodes, Set<Long> visible) {
+        SysMenu dashboard =
+                menus.stream()
+                        .filter(menu -> "Dashboard".equals(menu.getName()))
+                        .findFirst()
+                        .orElse(null);
+        SysMenu workspace =
+                menus.stream()
+                        .filter(menu -> "Workspace".equals(menu.getName()))
+                        .findFirst()
+                        .orElse(null);
+        if (dashboard == null
+                || workspace == null
+                || !"catalog".equals(dashboard.getType())
+                || !"/dashboard".equals(dashboard.getPath())
+                || !"menu".equals(workspace.getType())
+                || !dashboard.getId().equals(workspace.getParentId())
+                || !"workspace".equals(workspace.getPath())
+                || !"/dashboard/workspace/index".equals(workspace.getComponent())
+                || !activeChain(workspace, nodes)) {
+            return;
+        }
+        visible.add(dashboard.getId());
+        visible.add(workspace.getId());
     }
 
     private boolean activeChain(SysMenu menu, Map<Long, SysMenu> nodes) {

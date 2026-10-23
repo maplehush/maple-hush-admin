@@ -15,10 +15,14 @@ export function profilePayload(values: ProfileInput) {
   const realName = String(values.realName ?? '').trim();
   const introduction = String(values.introduction ?? '').trim();
   if (!realName || realName.length > 100) {
-    throw new Error('姓名不能为空且最多 100 个字符');
+    throw new Error(
+      realName
+        ? 'page.profile.errors.nameMax'
+        : 'page.profile.errors.nameRequired',
+    );
   }
   if (introduction.length > 500) {
-    throw new Error('个人简介最多 500 个字符');
+    throw new Error('page.profile.errors.introductionLength');
   }
   return { realName, introduction };
 }
@@ -26,20 +30,20 @@ export function profilePayload(values: ProfileInput) {
 export function passwordPayload(values: PasswordInput) {
   const { oldPassword, newPassword, confirmPassword } = values;
   if (typeof oldPassword !== 'string' || !oldPassword) {
-    throw new Error('请输入旧密码');
+    throw new Error('page.profile.errors.oldPasswordRequired');
   }
   if (
     typeof newPassword !== 'string' ||
     newPassword.length < 8 ||
     newPassword.length > 128
   ) {
-    throw new Error('新密码需为 8～128 个字符');
+    throw new Error('page.profile.errors.passwordLength');
   }
   if (new TextEncoder().encode(newPassword).length > 72) {
-    throw new Error('新密码的 UTF-8 编码不能超过 72 字节');
+    throw new Error('page.profile.errors.passwordBytes');
   }
   if (newPassword !== confirmPassword) {
-    throw new Error('两次输入的新密码不一致');
+    throw new Error('page.profile.errors.passwordMismatch');
   }
   return { oldPassword, newPassword };
 }

@@ -13,7 +13,7 @@ import java.util.Map;
  * @param name 唯一的前端路由名称
  * @param type 菜单类型：catalog、menu、embedded、link 或 button
  * @param status 启用状态：1 启用，0 停用；表单为空时按创建或修改规则处理
- * @param path 完整静态访问路径；保存时由服务端转换为相对子路径
+ * @param path 完整静态访问路径；外链路径由服务端按菜单名称生成
  * @param component 已登记的前端组件键，不含 .vue 后缀
  * @param redirect 路由重定向目标
  * @param authCode 小写接口权限码；目录不设置权限码

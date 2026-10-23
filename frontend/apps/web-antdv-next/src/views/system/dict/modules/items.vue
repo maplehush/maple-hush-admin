@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { DictItem, DictType } from '#/api/system/dict';
 
-import { nextTick, ref } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 
 import { useVbenDrawer } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
+import { preferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
 
-import { Button, message } from 'antdv-next';
+import { Button, message, Modal } from 'antdv-next';
 
 import { useVbenVxeGrid, VbenTableAction } from '#/adapter/vxe-table';
 import { dictApi } from '#/api/system/dict';
+import { $t } from '#/locales';
 
 import { itemColumns, itemSearch } from '../data';
 import Form from './form.vue';
@@ -24,7 +26,7 @@ const [FormDrawer, formDrawerApi] = useVbenDrawer({
 const [ItemGrid, itemGrid] = useVbenVxeGrid<DictItem>({
   formOptions: { schema: itemSearch() },
   gridOptions: {
-    columns: itemColumns,
+    columns: itemColumns(onItemStatusChange),
     height: 'auto',
     rowConfig: { keyField: 'id' },
     proxyConfig: {
@@ -53,6 +55,37 @@ const [ItemGrid, itemGrid] = useVbenVxeGrid<DictItem>({
     toolbarConfig: { refresh: true, search: true, export: false },
   },
 });
+watch(
+  () => preferences.app.locale,
+  () => {
+    itemGrid.setGridOptions({ columns: itemColumns(onItemStatusChange) });
+    itemGrid.formApi.setState({ schema: itemSearch() });
+  },
+);
+function onItemStatusChange(status: 0 | 1, row: DictItem): Promise<boolean> {
+  return new Promise((resolve) => {
+    Modal.confirm({
+      cancelText: $t('system.dict.cancel'),
+      content: $t('system.dict.statusChangeConfirm', {
+        name: row.label,
+        status: $t(status === 1 ? 'common.enabled' : 'common.disabled'),
+      }),
+      okText: $t('system.dict.confirm'),
+      onCancel: () => resolve(false),
+      onOk: async () => {
+        try {
+          await dictApi.updateItemStatus(row.id, status);
+          message.success($t('system.dict.statusChangeSuccess'));
+          await itemGrid.query();
+          resolve(true);
+        } catch {
+          resolve(false);
+        }
+      },
+      title: $t('system.dict.statusChangeTitle'),
+    });
+  });
+}
 const [Drawer, drawerApi] = useVbenDrawer<DictType>({
   async onOpenChange(open) {
     if (!open) {
@@ -73,20 +106,20 @@ function editItem(row?: DictItem) {
 }
 async function removeItem(row: DictItem) {
   await dictApi.removeItem(row.id);
-  message.success('删除成功');
+  message.success($t('system.dict.deleteSuccess'));
   await itemGrid.query();
 }
 </script>
 
 <template>
   <Drawer
-    :title="`字典项配置 · ${selected?.name ?? ''}`"
-    placement="left"
-    class="w-[1040px] max-w-full"
+    :title="`${$t('system.dict.configItems')} · ${selected?.name ?? ''}`"
+    placement="right"
+    class="w-[800px] max-w-full"
     content-class="min-h-0 overflow-hidden p-0"
     :footer="false"
   >
-    <ItemGrid table-title="字典项" class="h-full">
+    <ItemGrid :table-title="$t('system.dict.itemList')" class="h-full">
       <template #toolbar-tools>
         <Button
           v-if="access.accessCodes.includes('system:dict:create')"
@@ -94,7 +127,7 @@ async function removeItem(row: DictItem) {
           @click="editItem()"
         >
           <Plus class="size-5" />
-          新增字典项
+          {{ $t('system.dict.addItem') }}
         </Button>
       </template>
       <template #color="{ row }">
@@ -112,18 +145,18 @@ async function removeItem(row: DictItem) {
         <VbenTableAction
           :actions="[
             {
-              text: '编辑',
+              text: $t('system.dict.edit'),
               auth: 'system:dict:update',
               onClick: () => editItem(row),
             },
             {
-              text: '删除',
+              text: $t('system.dict.delete'),
               auth: 'system:dict:delete',
               danger: true,
               popConfirm: {
-                okText: '确认',
-                cancelText: '取消',
-                title: '确认删除？',
+                okText: $t('system.dict.confirm'),
+                cancelText: $t('system.dict.cancel'),
+                title: $t('system.dict.deleteItemConfirm'),
                 confirm: () => removeItem(row),
               },
             },

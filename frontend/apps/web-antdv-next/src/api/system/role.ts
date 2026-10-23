@@ -22,6 +22,9 @@ export interface RoleSave {
   remark?: string;
   permissions?: string[];
 }
+export interface RoleStatusInput {
+  status: 0 | 1;
+}
 export interface RoleQuery {
   page: number;
   pageSize: number;
@@ -41,5 +44,7 @@ export const createRole = (data: RoleSave) =>
   requestClient.post<{ id: string }>('/system/role', data);
 export const updateRole = (id: string, data: RoleSave) =>
   requestClient.put<null>(`/system/role/${id}`, data);
+export const updateRoleStatus = (id: string, data: RoleStatusInput) =>
+  requestClient.put<null>(`/system/role/${id}/status`, data);
 export const deleteRole = (id: string) =>
   requestClient.delete<null>(`/system/role/${id}`);

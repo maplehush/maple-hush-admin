@@ -44,6 +44,15 @@ public interface ISysRoleService {
     void updateRole(Long id, SysRoleSaveDTO dto);
 
     /**
+     * 修改非内置角色状态并使原持有者授权失效
+     *
+     * @param id 目标角色 ID
+     * @param status 启用状态：1 启用，0 停用
+     * @throws com.maplehush.admin.common.exception.BusinessException 角色不存在、为内置角色或操作者不满足启用授权要求
+     */
+    void updateRoleStatus(Long id, Integer status);
+
+    /**
      * 删除非内置角色及其关联，使原持有者授权失效
      *
      * @param id 目标业务资源 ID

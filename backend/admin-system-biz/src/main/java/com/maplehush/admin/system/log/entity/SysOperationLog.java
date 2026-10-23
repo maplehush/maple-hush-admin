@@ -63,7 +63,7 @@ public class SysOperationLog {
     private String requestMethod;
 
     /**
-     * 服务端路由模板，不含路径实参或查询参数
+     * 实际请求路径，含路径实参，不含查询参数；历史记录可能为路由模板
      */
     private String requestPath;
 

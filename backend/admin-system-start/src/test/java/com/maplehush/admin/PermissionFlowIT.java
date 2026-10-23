@@ -129,7 +129,7 @@ class PermissionFlowIT {
 
     @AfterEach
     void clean() {
-        jdbc.update("UPDATE sys_menu SET status=1 WHERE id=1");
+        jdbc.update("UPDATE sys_menu SET status=1 WHERE id IN (1,10)");
         jdbc.update("DELETE FROM sys_dept WHERE name LIKE 't06_%'");
         jdbc.update("DELETE FROM sys_operation_log");
         jdbc.update("DELETE FROM auth_refresh_session WHERE user_id=?", userId);
@@ -150,7 +150,11 @@ class PermissionFlowIT {
         var tree = json.readTree(get("/api/menu/all", access).body());
         assertEquals(0, tree.get("code").asInt());
         assertTrue(tree.get("error").isNull());
-        var root = tree.get("data").get(0);
+        assertEquals(2, tree.get("data").size());
+        var workspace = tree.get("data").get(0);
+        assertEquals("Dashboard", workspace.get("name").asString());
+        assertEquals("Workspace", workspace.get("children").get(0).get("name").asString());
+        var root = tree.get("data").get(1);
         assertEquals("/system", root.get("path").asString());
         assertEquals(1, root.get("children").size());
         var page = root.get("children").get(0);
@@ -165,7 +169,25 @@ class PermissionFlowIT {
                 json.readTree(get("/api/auth/codes", access).body()).get("data").toString());
         jdbc.update("UPDATE sys_role SET status=0 WHERE id=?", roleId);
         assertEquals(403, get("/api/t06/list", access).statusCode());
-        assertTrue(json.readTree(get("/api/menu/all", access).body()).get("data").isEmpty());
+        var menusAfterDisable = json.readTree(get("/api/menu/all", access).body()).get("data");
+        assertEquals(1, menusAfterDisable.size());
+        assertEquals("Dashboard", menusAfterDisable.get(0).get("name").asString());
+        assertTrue(menusAfterDisable.get(0).get("children").get(0).get("name").asString().equals("Workspace"));
+    }
+
+    @Test
+    void userWithoutAnyRoleGetsOnlyTheBaselineWorkspace() throws Exception {
+        jdbc.update("DELETE FROM sys_user_role WHERE user_id=?", userId);
+        jdbc.update("UPDATE sys_user SET auth_version=auth_version+1 WHERE id=?", userId);
+        access = sessions.open(userId, 1).accessToken();
+
+        var menus = json.readTree(get("/api/menu/all", access).body()).get("data");
+        assertEquals(1, menus.size());
+        assertEquals("Dashboard", menus.get(0).get("name").asString());
+        assertEquals("Workspace", menus.get(0).get("children").get(0).get("name").asString());
+        assertTrue(json.readTree(get("/api/auth/codes", access).body()).get("data").isEmpty());
+        assertTrue(json.readTree(get("/api/user/info", access).body()).get("data").get("roles").isEmpty());
+        assertEquals(403, get("/api/t06/list", access).statusCode());
     }
 
     @Test
@@ -258,7 +280,8 @@ class PermissionFlowIT {
         assertFalse(persisted.contains("never-store-me"));
         assertFalse(persisted.contains("private"));
         assertFalse(persisted.contains("sensitive exception"));
-        assertTrue(persisted.contains("/api/t06/write/{mode}"));
+        assertTrue(persisted.contains("/api/t06/write/success"));
+        assertTrue(persisted.contains("/api/t06/write/rollback"));
     }
 
     @Test
@@ -279,9 +302,16 @@ class PermissionFlowIT {
             String adminAccess = sessions.open(adminId, version).accessToken();
             var adminRoutes = json.readTree(get("/api/menu/all", adminAccess).body()).get("data");
             assertEquals(2, adminRoutes.size());
-            assertEquals(5, adminRoutes.get(0).get("children").size());
-            assertEquals("/log", adminRoutes.get(1).get("path").asString());
-            assertEquals(2, adminRoutes.get(1).get("children").size());
+            assertEquals("Dashboard", adminRoutes.get(0).get("name").asString());
+            assertEquals(1, adminRoutes.get(0).get("children").size());
+            assertEquals(
+                    "Workspace",
+                    adminRoutes.get(0).get("children").get(0).get("name").asString());
+            assertEquals("System", adminRoutes.get(1).get("name").asString());
+            assertEquals(6, adminRoutes.get(1).get("children").size());
+            var logManagement = adminRoutes.get(1).get("children").get(5);
+            assertEquals("LogManagement", logManagement.get("name").asString());
+            assertEquals(2, logManagement.get("children").size());
             assertEquals(
                     25,
                     json.readTree(get("/api/auth/codes", adminAccess).body()).get("data").size());
@@ -305,7 +335,7 @@ class PermissionFlowIT {
     }
 
     @Test
-    void profileInvalidationAndMenuVersionChangesFollowCommit() throws Exception {
+    void profileInvalidationAndMenuPermissionChangesKeepTheSessionValid() throws Exception {
         String key = keys.key("user", Long.toString(userId));
         new TransactionTemplate(transactions)
                 .executeWithoutResult(
@@ -321,11 +351,15 @@ class PermissionFlowIT {
                         .get("data")
                         .get("realName")
                         .asString());
-        new TransactionTemplate(transactions)
-                .executeWithoutResult(status -> changes.menusChanged());
-        assertEquals(401, get("/api/menu/all", access).statusCode());
+        jdbc.update("UPDATE sys_menu SET status=0 WHERE id=10");
+        assertEquals(200, get("/api/menu/all", access).statusCode());
+        assertEquals(403, get("/api/t06/list", access).statusCode());
+        assertTrue(
+                json.readTree(get("/api/auth/codes", access).body())
+                        .get("data")
+                        .isEmpty());
         assertEquals(
-                1L,
+                0L,
                 jdbc.queryForObject(
                         "SELECT auth_version FROM sys_user WHERE id=?", Long.class, userId));
     }

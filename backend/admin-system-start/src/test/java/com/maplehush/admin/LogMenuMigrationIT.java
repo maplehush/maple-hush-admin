@@ -13,7 +13,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import java.util.UUID;
 
 /**
- * 在独立 MySQL 库验证日志菜单的全新安装和带授权数据的升级，不修改开发库。
+ * 在独立 MySQL 库验证日志菜单迁移及组件键升级，不修改开发库。
  */
 @EnabledIfEnvironmentVariable(named = "LOG_MENU_IT_ENABLED", matches = "true")
 class LogMenuMigrationIT {
@@ -40,16 +40,38 @@ class LogMenuMigrationIT {
     }
 
     @Test
-    void freshInstallationHasSeparateLogCatalog() {
-        Flyway.configure().dataSource(source).load().migrate();
-        assertEquals(4, count("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1"));
-        assertEquals(27, count("SELECT COUNT(*) FROM sys_menu"));
+    void freshInstallationHasNestedLogCatalog() {
+        Flyway.configure().dataSource(source).target("10").load().migrate();
+        assertEquals(10, count("SELECT COUNT(*) FROM flyway_schema_history WHERE success=1"));
+        assertEquals(29, count("SELECT COUNT(*) FROM sys_menu"));
         assertEquals(27, count("SELECT COUNT(*) FROM sys_role_menu"));
         assertEquals(2, count("SELECT COUNT(*) FROM sys_menu WHERE parent_id IS NULL"));
+        assertEquals(1, count("SELECT COUNT(*) FROM sys_menu WHERE name='LogManagement' AND parent_id=1"));
         assertEquals(2, count("SELECT COUNT(*) FROM sys_menu m JOIN sys_menu p ON m.parent_id=p.id "
                 + "WHERE p.name='LogManagement' AND m.auth_code IN ('system:login-log:list','system:operation-log:list')"));
-        assertEquals("/log", jdbc.queryForObject(
+        assertEquals("log", jdbc.queryForObject(
                 "SELECT path FROM sys_menu WHERE name='LogManagement'", String.class));
+        assertEquals(1, count("SELECT COUNT(*) FROM sys_menu WHERE auth_code='system:login-log:list' "
+                + "AND component='/log/login/list'"));
+        assertEquals(1, count("SELECT COUNT(*) FROM sys_menu WHERE auth_code='system:operation-log:list' "
+                + "AND component='/log/operation/list'"));
+    }
+
+    @Test
+    void upgradeAlignsLogComponentsWithTheViewsDirectory() {
+        Flyway.configure().dataSource(source).target("9").load().migrate();
+        assertEquals("/system/login-log/list", jdbc.queryForObject(
+                "SELECT component FROM sys_menu WHERE auth_code='system:login-log:list'", String.class));
+        assertEquals("/system/operation-log/list", jdbc.queryForObject(
+                "SELECT component FROM sys_menu WHERE auth_code='system:operation-log:list'", String.class));
+
+        var result = Flyway.configure().dataSource(source).load().migrate();
+
+        assertEquals(1, result.migrationsExecuted);
+        assertEquals("/log/login/list", jdbc.queryForObject(
+                "SELECT component FROM sys_menu WHERE auth_code='system:login-log:list'", String.class));
+        assertEquals("/log/operation/list", jdbc.queryForObject(
+                "SELECT component FROM sys_menu WHERE auth_code='system:operation-log:list'", String.class));
     }
 
     @Test
@@ -66,7 +88,7 @@ class LogMenuMigrationIT {
         jdbc.update("INSERT INTO sys_menu(id,name,title,type,path,redirect,meta_json) VALUES "
                 + "(71,'Custom','自定义','catalog','/custom','/system/login-log',"
                 + "'{\"activePath\":\"/system/operation-log\"}')");
-        var flyway = Flyway.configure().dataSource(source).load();
+        var flyway = Flyway.configure().dataSource(source).target("5").load();
         flyway.migrate();
         assertEquals(3, count("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_menu m ON m.id=rm.menu_id "
                 + "WHERE m.name='LogManagement'"));
@@ -75,10 +97,10 @@ class LogMenuMigrationIT {
         assertEquals(1, count("SELECT COUNT(*) FROM sys_role_menu WHERE role_id=3 AND menu_id=70"));
         assertEquals(0, count("SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_menu m ON m.id=rm.menu_id "
                 + "WHERE role_id=4 AND m.name='LogManagement'"));
-        assertEquals(3, count("SELECT COUNT(*) FROM sys_user WHERE id IN (1,2,3) AND auth_version=1"));
+        assertEquals(3, count("SELECT COUNT(*) FROM sys_user WHERE id IN (1,2,3) AND auth_version=2"));
         assertEquals(0, count("SELECT auth_version FROM sys_user WHERE id=4"));
-        assertEquals("/log/login-log", jdbc.queryForObject("SELECT redirect FROM sys_menu WHERE id=71", String.class));
-        assertEquals("/log/operation-log", jdbc.queryForObject(
+        assertEquals("/system/log/login-log", jdbc.queryForObject("SELECT redirect FROM sys_menu WHERE id=71", String.class));
+        assertEquals("/system/log/operation-log", jdbc.queryForObject(
                 "SELECT JSON_UNQUOTE(JSON_EXTRACT(meta_json,'$.activePath')) FROM sys_menu WHERE id=71", String.class));
         assertEquals(0, flyway.migrate().migrationsExecuted);
     }

@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * @param success 业务事务是否成功提交
  * @param summary 固定结果摘要，不保存入参或异常
  * @param requestMethod HTTP 请求方法
- * @param requestPath 服务端路由模板，不含路径实参或查询参数
+ * @param requestPath 实际请求路径，含路径实参，不含查询参数；历史记录可能为路由模板
  * @param clientIp 连接来源地址
  * @param traceId 请求关联标识
  * @param createTime 东八区秒级创建时间

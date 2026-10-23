@@ -1,4 +1,9 @@
 import type { LoginInput, LoginResponse } from './session-coordinator';
+
+import { preferences } from '@vben/preferences';
+
+import { resolveApiErrorMessage } from '#/api/error-message';
+import { $t } from '#/locales';
 export class AuthHttpError extends Error {
   constructor(
     public status: number,
@@ -20,11 +25,18 @@ async function send<T>(
     headers: { 'Content-Type': 'application/json', ...init.headers },
     signal: AbortSignal.timeout(15_000),
   });
-  const body = await response.json();
-  if (!response.ok || (!raw && body.code !== 0)) {
+  const body = await response.json().catch(() => {
+    throw new AuthHttpError(response.status, $t('errors.requestFailed'));
+  });
+  if (!response.ok || (!raw && body?.code !== 0)) {
     throw new AuthHttpError(
       response.status,
-      body.message || '认证请求失败，请重试',
+      resolveApiErrorMessage(
+        body,
+        preferences.app.locale,
+        $t,
+        path === 'login',
+      ),
     );
   }
   return raw ? body : body.data;
@@ -52,7 +64,7 @@ export const authHttp = {
           !result.accessToken ||
           'passwordChangeToken' in result)
     ) {
-      throw new Error('登录响应格式不正确，请重新登录');
+      throw new Error($t('errors.invalidLoginResponse'));
     }
     // 后端登录成功会清理旧 CSRF Cookie，立即领取新凭据。
     await csrfHeaders();
@@ -71,7 +83,7 @@ export const authHttp = {
       true,
     );
     if (typeof token !== 'string' || !token) {
-      throw new Error('刷新响应格式不正确，请重新登录');
+      throw new Error($t('errors.invalidRefreshResponse'));
     }
     return token;
   },

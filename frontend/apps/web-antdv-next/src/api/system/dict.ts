@@ -35,6 +35,7 @@ export type DictTypeInput = Pick<DictType, 'dictCode' | 'name' | 'status'> & {
   remark?: string;
 };
 export type DictItemInput = Omit<DictItem, 'createTime' | 'id' | 'updateTime'>;
+export type DictStatus = 0 | 1;
 export const dictApi = {
   types: (params: Record<string, unknown>) =>
     requestClient.get<PageResult<DictType>>('/system/dict/type/list', {
@@ -45,6 +46,17 @@ export const dictApi = {
     id
       ? requestClient.put(`/system/dict/type/${id}`, data)
       : requestClient.post('/system/dict/type', data),
+  updateTypeStatus: async (id: string, status: DictStatus) => {
+    const current = await requestClient.get<DictType>(
+      `/system/dict/type/${id}`,
+    );
+    return requestClient.put(`/system/dict/type/${id}`, {
+      dictCode: current.dictCode,
+      name: current.name,
+      remark: current.remark ?? '',
+      status,
+    } satisfies DictTypeInput);
+  },
   removeType: (id: string) => requestClient.delete(`/system/dict/type/${id}`),
   items: (params: Record<string, unknown>) =>
     requestClient.get<PageResult<DictItem>>('/system/dict/item/list', {
@@ -55,6 +67,21 @@ export const dictApi = {
     id
       ? requestClient.put(`/system/dict/item/${id}`, data)
       : requestClient.post('/system/dict/item', data),
+  updateItemStatus: async (id: string, status: DictStatus) => {
+    const current = await requestClient.get<DictItem>(
+      `/system/dict/item/${id}`,
+    );
+    return requestClient.put(`/system/dict/item/${id}`, {
+      color: current.color,
+      defaultItem: current.defaultItem,
+      dictTypeId: current.dictTypeId,
+      label: current.label,
+      remark: current.remark ?? '',
+      sort: current.sort,
+      status,
+      value: current.value,
+    } satisfies DictItemInput);
+  },
   removeItem: (id: string) => requestClient.delete(`/system/dict/item/${id}`),
   options: (code: string) =>
     requestClient.get<DictOption[]>(

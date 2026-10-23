@@ -18,14 +18,16 @@ import {
   updateUser,
   uploadUserImage,
 } from '#/api/system/user';
+import { $t } from '#/locales';
 
 import { useFormSchema } from '../data';
 import {
+  avatarUploadErrorKey,
   buildUserPayload,
   canManageProtectedAction,
   parseRoleIds,
   pendingImageFromAvatar,
-} from '../form-policy';
+} from '../data';
 
 const emits = defineEmits(['success']);
 const access = useAccessStore();
@@ -72,7 +74,7 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
         !canManageProtectedAction(formData.value) &&
         payload.status !== formData.value.status
       )
-        throw new Error('唯一超级管理员状态不可修改');
+        throw new Error($t('system.user.errors.protectedStatus'));
     } catch (cause) {
       error.value = (cause as Error).message;
       return;
@@ -81,11 +83,11 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
     try {
       if (id.value) await updateUser(id.value, payload);
       else await createUser(payload as UserCreatePayload);
-      message.success('用户已保存');
+      message.success($t('system.user.saved'));
       emits('success');
       drawerApi.close();
     } catch {
-      error.value = '保存失败，请重试；如头像已过期，请重新上传';
+      error.value = $t('system.user.errors.save');
     } finally {
       drawerApi.unlock();
     }
@@ -114,6 +116,15 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
             disabled: uploading.value || !ready.value,
             customRequest: uploadAvatar,
             beforeUpload: validateAvatar,
+            handleChange: ({ file }) => {
+              if (file.status === 'done') {
+                message.success($t('system.user.errors.avatarUploaded'));
+              } else if (file.status === 'error') {
+                message.error(
+                  $t(`system.user.errors.${avatarUploadErrorKey(file.error)}`),
+                );
+              }
+            },
             onRemove: removeAvatar,
           }),
         }),
@@ -136,7 +147,7 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
             componentProps: {
               mode: 'multiple',
               options: roles.map((role) => ({
-                label: `${role.name}${role.status === 0 ? '（停用）' : ''}`,
+                label: `${role.name}${role.status === 0 ? $t('system.user.disabledRoleSuffix') : ''}`,
                 value: role.id,
                 disabled: role.status !== 1,
               })),
@@ -147,7 +158,7 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
       ready.value = true;
       drawerApi.setState({ showConfirmButton: true });
     } catch {
-      error.value = '读取用户或选项失败，请关闭后重试';
+      error.value = $t('system.user.errors.optionsLoad');
     } finally {
       drawerApi.setState({ loading: false });
     }
@@ -155,11 +166,18 @@ const [Drawer, drawerApi] = useVbenDrawer<null | UserRecord>({
 });
 defineExpose({ drawerApi });
 const getDrawerTitle = computed(() =>
-  formData.value?.id ? '编辑用户' : '新增用户',
+  formData.value?.id ? $t('system.user.edit') : $t('system.user.create'),
 );
 function existingAvatarFiles(url?: null | string): UploadFile[] {
   return url
-    ? [{ uid: 'existing-avatar', name: '当前头像', status: 'done', url }]
+    ? [
+        {
+          uid: 'existing-avatar',
+          name: $t('system.user.existingAvatar'),
+          status: 'done',
+          url,
+        },
+      ]
     : [];
 }
 function validateAvatar(file: File) {
@@ -169,7 +187,7 @@ function validateAvatar(file: File) {
     !file.size ||
     file.size > 2 * 1024 * 1024
   ) {
-    error.value = '仅支持不超过 2 MB 的 JPG、PNG、WebP 图片';
+    message.error($t('system.user.errors.avatarFiles'));
     Object.assign(file, { status: 'removed' });
     return false;
   }
@@ -193,7 +211,7 @@ async function uploadAvatar({
   onProgress,
 }: Parameters<NonNullable<UploadProps['customRequest']>>[0]) {
   if (!ready.value || uploading.value || !(file instanceof File)) {
-    onError?.(new Error('暂时无法上传，请稍后重试'));
+    onError?.(new Error($t('system.user.errors.avatarUnavailable')));
     return;
   }
   error.value = '';
@@ -206,10 +224,12 @@ async function uploadAvatar({
     Object.assign(file, { url: result.url });
     onProgress?.({ percent: 100 });
     onSuccess?.({ ...result, expiresAt: startedAt + 2 * 60 * 60 * 1000 });
-    message.success('上传成功，保存用户后生效。');
   } catch (cause) {
-    error.value = '头像上传失败，请重新选择图片';
-    onError?.(cause instanceof Error ? cause : new Error('头像上传失败'));
+    onError?.(
+      cause instanceof Error
+        ? cause
+        : new Error($t('system.user.errors.avatarUpload')),
+    );
   } finally {
     uploading.value = false;
     drawerApi.unlock();

@@ -200,12 +200,32 @@ class UserManagementIT {
                 request(
                                 "POST",
                                 "/api/system/user",
-                                form("t10_alice", "Duplicate", null, List.of()),
+                        form(
+                                "t10_alice",
+                                "Duplicate",
+                                null,
+                                List.of(Long.toString(role("t10_duplicate", List.of())))),
                                 access)
                         .statusCode());
         assertEquals(
                 404,
                 request("GET", "/api/system/user/9223372036854775807", null, access).statusCode());
+    }
+
+    @Test
+    void createRequiresAtLeastOneRole() throws Exception {
+        var emptyRoles = form("t10_missing_role", "Missing role", null, List.of());
+        assertEquals(400, request("POST", "/api/system/user", emptyRoles, access).statusCode());
+
+        var missingRoles = form("t10_omitted_role", "Omitted role", null, List.of());
+        missingRoles.remove("roleIds");
+        assertEquals(400, request("POST", "/api/system/user", missingRoles, access).statusCode());
+
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_user WHERE username IN ('t10_missing_role','t10_omitted_role')",
+                        Integer.class));
     }
 
     @Test
@@ -477,7 +497,7 @@ class UserManagementIT {
         long operator = ordinary("t10_limited", List.of(limited));
         String token = sessions.open(operator, 0).accessToken();
         assertEquals(
-                200,
+                400,
                 request(
                                 "POST",
                                 "/api/system/user",
@@ -633,10 +653,18 @@ class UserManagementIT {
                 request(
                                 "POST",
                                 "/api/system/user",
-                                form("t10_bad", "Bad", 9223372036854775807L, List.of()),
+                form(
+                        "t10_bad",
+                        "Bad",
+                        9223372036854775807L,
+                        List.of(Long.toString(role("t10_bad_dept", List.of())))),
                                 access)
                         .statusCode());
-        var injected = form("t10_injected", "Bad", null, List.of());
+        var injected = form(
+                "t10_injected",
+                "Bad",
+                null,
+                List.of(Long.toString(role("t10_injected_role", List.of()))));
         injected.put("password", "plaintext");
         assertEquals(400, request("POST", "/api/system/user", injected, access).statusCode());
     }
@@ -725,11 +753,21 @@ class UserManagementIT {
 
     private long create(String username, String name, Long dept, List<String> roles)
             throws Exception {
+        Long fixtureRole = null;
+        List<String> assigned = roles;
+        if (roles.isEmpty()) {
+            fixtureRole = role("t10_fixture_" + UUID.randomUUID().toString().substring(0, 8), List.of());
+            assigned = List.of(Long.toString(fixtureRole));
+        }
         var response =
-                request("POST", "/api/system/user", form(username, name, dept, roles), access);
+                request("POST", "/api/system/user", form(username, name, dept, assigned), access);
         assertEquals(200, response.statusCode(), response.body());
         assertFalse(response.body().contains("12345678"));
-        return Long.parseLong(data(response).get("id").asString());
+        long id = Long.parseLong(data(response).get("id").asString());
+        if (fixtureRole != null) {
+            jdbc.update("DELETE FROM sys_user_role WHERE user_id=? AND role_id=?", id, fixtureRole);
+        }
+        return id;
     }
 
     private Map<String, Object> form(String username, String name, Long dept, List<String> roles) {

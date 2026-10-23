@@ -4,6 +4,7 @@ import com.maplehush.admin.common.api.PageResult;
 import com.maplehush.admin.common.api.Result;
 import com.maplehush.admin.system.role.dto.SysRoleQueryDTO;
 import com.maplehush.admin.system.role.dto.SysRoleSaveDTO;
+import com.maplehush.admin.system.role.dto.SysRoleStatusDTO;
 import com.maplehush.admin.system.role.service.ISysRoleService;
 import com.maplehush.admin.system.role.support.SysRoleGrantRules;
 import com.maplehush.admin.system.role.vo.SysRoleVO;
@@ -65,6 +66,14 @@ public class SysRoleController {
     @PreAuthorize("hasAuthority('system:role:update')")
     public Result<Void> update(@PathVariable String id, @Valid @RequestBody SysRoleSaveDTO dto) {
         service.updateRole(SysRoleGrantRules.id(id), dto);
+        return Result.ok(null);
+    }
+
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('system:role:update')")
+    public Result<Void> updateStatus(
+            @PathVariable String id, @Valid @RequestBody SysRoleStatusDTO dto) {
+        service.updateRoleStatus(SysRoleGrantRules.id(id), dto.status());
         return Result.ok(null);
     }
 

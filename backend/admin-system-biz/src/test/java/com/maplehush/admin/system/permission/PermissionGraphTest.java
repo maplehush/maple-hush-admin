@@ -46,6 +46,27 @@ class PermissionGraphTest {
         assertFalse(route.meta().containsKey("keepAlive"));
     }
 
+    @Test
+    void workspaceIsAvailableWithoutRoleGrantAndAddsNoPermissionCode() {
+        SysMenu dashboard = menu(1, null, "catalog", "/dashboard", null);
+        dashboard.setName("Dashboard");
+        dashboard.setTitle("概览");
+        SysMenu workspace = menu(2, 1L, "menu", "workspace", null);
+        workspace.setName("Workspace");
+        workspace.setTitle("工作台");
+        workspace.setComponent("/dashboard/workspace/index");
+
+        var resolved = graph.resolve(List.of(dashboard, workspace), Set.of());
+
+        assertTrue(resolved.codes().isEmpty());
+        assertEquals(1, resolved.routes().size());
+        assertEquals("Dashboard", resolved.routes().getFirst().name());
+        assertEquals("Workspace", resolved.routes().getFirst().children().getFirst().name());
+        assertEquals(
+                "/dashboard/workspace/index",
+                resolved.routes().getFirst().children().getFirst().component());
+    }
+
     private SysMenu menu(long id, Long parent, String type, String path, String code) {
         SysMenu menu = new SysMenu();
         menu.setId(id);

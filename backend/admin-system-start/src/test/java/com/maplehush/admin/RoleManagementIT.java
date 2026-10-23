@@ -34,6 +34,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.sql.DriverManager;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -177,10 +178,12 @@ class RoleManagementIT {
 
     @Test
     void grantsNormalizeAndRemovingPageCleansButtonsAndInvalidatesSessions() throws Exception {
-        long role = create("t09_target", List.of("10", "11"));
+        List<String> staleWorkspaceGrants = new ArrayList<>(List.of("10", "11"));
+        staleWorkspaceGrants.addAll(defaultWorkspaceIds());
+        long role = create("t09_target", staleWorkspaceGrants);
         assertEquals(List.of("1", "10", "11"), ids(role));
         assertEquals(
-                "[\"1\",\"10\",\"11\"]",
+                json.valueToTree(List.of("1", "10", "11")).toString(),
                 data(request("GET", "/api/system/role/" + role, null, access))
                         .get("permissions")
                         .toString());
@@ -251,7 +254,8 @@ class RoleManagementIT {
                 1,
                 jdbc.queryForObject(
                         "SELECT status FROM sys_role WHERE id=?", Integer.class, builtin));
-        assertEquals(27, ids(builtin).size());
+        assertEquals(27, allIds(builtin).size());
+        assertTrue(java.util.Collections.disjoint(allIds(builtin), defaultWorkspaceIds()));
     }
 
     @Test
@@ -332,6 +336,51 @@ class RoleManagementIT {
                 0,
                 jdbc.queryForObject(
                         "SELECT status FROM sys_role WHERE id=?", Integer.class, target));
+    }
+
+    @Test
+    void statusEndpointChangesOnlyStatusAndPreservesAuthorizationRules() throws Exception {
+        long target = create("t09_status_target", List.of("10"));
+        long member = user("t09_status_member", target);
+        var session = sessions.open(member, 0);
+        long editorRole = create("t09_status_editor", List.of("20", "22"));
+        long editorUser = user("t09_status_editor_user", editorRole);
+        String editor = sessions.open(editorUser, 0).accessToken();
+
+        assertEquals(
+                200,
+                request("PUT", "/api/system/role/" + target + "/status", Map.of("status", 0), editor)
+                        .statusCode());
+        assertEquals(0, jdbc.queryForObject("SELECT status FROM sys_role WHERE id=?", Integer.class, target));
+        assertEquals(List.of("1", "10"), ids(target));
+        assertEquals(1L, version(member));
+        assertEquals(401, request("GET", "/api/auth/codes", null, session.accessToken()).statusCode());
+        assertEquals(
+                403,
+                request("PUT", "/api/system/role/" + target + "/status", Map.of("status", 1), editor)
+                        .statusCode());
+        assertEquals(0, jdbc.queryForObject("SELECT status FROM sys_role WHERE id=?", Integer.class, target));
+        assertEquals(
+                400,
+                request("PUT", "/api/system/role/" + target + "/status", Map.of("status", 2), access)
+                        .statusCode());
+        assertEquals(
+                403,
+                request("PUT", "/api/system/role/" + builtin + "/status", Map.of("status", 0), access)
+                        .statusCode());
+
+        assertEquals(
+                200,
+                request("PUT", "/api/system/role/" + target + "/status", Map.of("status", 1), access)
+                        .statusCode());
+        assertEquals(1, jdbc.queryForObject("SELECT status FROM sys_role WHERE id=?", Integer.class, target));
+        assertEquals(2L, version(member));
+        assertEquals(
+                2,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_operation_log WHERE operation_code='system:role:update' AND target_id=? AND success=1",
+                        Integer.class,
+                        Long.toString(target)));
     }
 
     @Test
@@ -447,11 +496,25 @@ class RoleManagementIT {
     }
 
     private List<String> ids(long role) {
+        return allIds(role);
+    }
+
+    private List<String> allIds(long role) {
         return jdbc
                 .queryForList(
                         "SELECT menu_id FROM sys_role_menu WHERE role_id=? ORDER BY menu_id",
                         Long.class,
                         role)
+                .stream()
+                .map(String::valueOf)
+                .toList();
+    }
+
+    private List<String> defaultWorkspaceIds() {
+        return jdbc
+                .queryForList(
+                        "SELECT id FROM sys_menu WHERE name IN ('Dashboard','Workspace') ORDER BY id",
+                        Long.class)
                 .stream()
                 .map(String::valueOf)
                 .toList();

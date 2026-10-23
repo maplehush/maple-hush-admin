@@ -16,6 +16,7 @@ import com.maplehush.admin.common.storage.service.IOssStorageService;
 import com.maplehush.admin.config.redis.RedisKeyBuilder;
 import com.maplehush.admin.system.file.service.IImageValidationService;
 import com.maplehush.admin.system.file.service.impl.FileUploadServiceImpl;
+import com.maplehush.admin.system.file.support.UploadRateLimiter;
 import com.maplehush.admin.system.permission.service.IPermissionService;
 import com.maplehush.admin.system.user.entity.SysUser;
 
@@ -59,7 +60,8 @@ class FileUploadServiceTest {
                         permissions,
                         redis,
                         new RedisKeyBuilder("test"),
-                        JsonMapper.builder().build());
+                        JsonMapper.builder().build(),
+                        mock(UploadRateLimiter.class));
         var error =
                 assertThrows(
                         BusinessException.class, () -> service.upload(mock(MultipartFile.class)));

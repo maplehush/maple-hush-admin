@@ -14,8 +14,9 @@ import {
   getAssignableRoleOptions,
   getUser,
 } from '#/api/system/user';
+import { $t } from '#/locales';
 
-import { canManageProtectedAction, parseRoleIds } from '../form-policy';
+import { canManageProtectedAction, parseRoleIds } from '../data';
 
 const emits = defineEmits(['success']);
 const access = useAccessStore();
@@ -23,7 +24,12 @@ const canListRole = () => access.accessCodes.includes('system:role:list');
 const target = ref<UserRecord>();
 const error = ref('');
 const ready = ref(false);
-const [Form, formApi] = useVbenForm({ schema: [], showDefaultActions: false });
+const [Form, formApi] = useVbenForm({
+  layout: 'vertical',
+  schema: [],
+  showDefaultActions: false,
+  wrapperClass: 'grid-cols-1',
+});
 const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
   async onConfirm() {
     if (
@@ -47,11 +53,11 @@ const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
     drawerApi.lock();
     try {
       await assignUserRoles(target.value.id, ids);
-      message.success('角色分配已保存');
+      message.success($t('system.user.errors.rolesSave'));
       emits('success');
       drawerApi.close();
     } catch {
-      error.value = '分配失败，选择已保留；请检查权限或重新登录后重试';
+      error.value = $t('system.user.errors.rolesSaveFailed');
     } finally {
       drawerApi.unlock();
     }
@@ -65,21 +71,21 @@ const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
     try {
       const current = await getUser(drawerApi.getData()!.id);
       if (!canManageProtectedAction(current)) {
-        error.value = '唯一超级管理员角色不可修改';
+        error.value = $t('system.user.errors.protectedRoles');
         return;
       }
       target.value = current;
       const roles = canListRole() ? await getAssignableRoleOptions() : [];
       const options = roles.map((role) => ({
         value: role.id,
-        label: `${role.name}${role.status === 0 ? '（停用）' : ''}`,
+        label: `${role.name}${role.status === 0 ? $t('system.user.disabledRoleSuffix') : ''}`,
         disabled: role.status !== 1 && !current.roleIds.includes(role.id),
       }));
       for (const id of current.roleIds)
         if (!options.some((option) => option.value === id))
           options.push({
             value: id,
-            label: `ID ${id}（已有）`,
+            label: $t('system.user.roleExistingId', { id }),
             disabled: false,
           });
       formApi.setState({
@@ -87,10 +93,14 @@ const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
           {
             component: canListRole() ? 'Select' : 'Input',
             componentProps: canListRole()
-              ? { mode: 'multiple', options }
-              : { placeholder: '正整数角色ID，以逗号分隔；留空清空' },
+              ? { mode: 'multiple', options, class: 'w-full' }
+              : {
+                  class: 'w-full',
+                  placeholder: $t('system.user.roleIdPlaceholder'),
+                },
             fieldName: 'roleIds',
-            label: '角色',
+            formItemClass: 'w-full',
+            label: $t('system.role.name'),
           },
         ],
       });
@@ -101,7 +111,7 @@ const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
       ready.value = true;
       drawerApi.setState({ showConfirmButton: true });
     } catch {
-      error.value = '读取用户或角色选项失败，请关闭后重试';
+      error.value = $t('system.user.errors.roleOptionsLoad');
     } finally {
       drawerApi.setState({ loading: false });
     }
@@ -110,12 +120,14 @@ const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
 defineExpose({ drawerApi });
 </script>
 <template>
-  <Drawer :title="`分配角色：${target?.username ?? ''}`">
+  <Drawer
+    :title="$t('system.role.assignTitle', { username: target?.username ?? '' })"
+  >
     <p class="mb-4">
-      选择用户角色，留空可移除全部角色。变更后该用户需重新登录。
+      {{ $t('system.role.assignHelp') }}
     </p>
     <p v-if="!canListRole()" class="mb-4 text-muted-foreground">
-      暂无角色列表查看权限，请输入角色 ID。
+      {{ $t('system.role.assignNoListPermission') }}
     </p>
     <Form />
     <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>

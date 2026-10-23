@@ -22,4 +22,15 @@ public interface SysRoleMapper extends BaseMapper<SysRole> {
     @Update(
             "UPDATE sys_role SET role_name=#{roleName},status=#{status},remark=#{remark},update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
     int updateRole(SysRole role);
+
+    /**
+     * 只更新角色状态，避免状态开关覆盖其他角色属性或菜单授权
+     *
+     * @param id 角色 ID
+     * @param status 启用状态：1 启用，0 停用
+     * @return 更新行数
+     */
+    @Update(
+            "UPDATE sys_role SET status=#{status},update_time=CURRENT_TIMESTAMP WHERE id=#{id}")
+    int updateRoleStatus(Long id, Integer status);
 }

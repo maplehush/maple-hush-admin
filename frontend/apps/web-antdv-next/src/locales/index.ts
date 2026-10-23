@@ -11,7 +11,7 @@ import {
   setupI18n as coreSetup,
   loadLocalesMapFromDir,
 } from '@vben/locales';
-import { preferences } from '@vben/preferences';
+import { preferences, updatePreferences } from '@vben/preferences';
 
 import antdEnLocale from 'antdv-next/dist/locale/en_US';
 import antdDefaultLocale from 'antdv-next/dist/locale/zh_CN';
@@ -25,15 +25,21 @@ const localesMap = loadLocalesMapFromDir(
   /\.\/langs\/([^/]+)\/(.*)\.json$/,
   modules,
 );
+
+/** 目标应用当前仅支持简体中文和英文；历史无效偏好统一回退到简体中文。 */
+function resolveLocale(lang: string): SupportedLanguagesType {
+  return lang === 'en-US' ? 'en-US' : 'zh-CN';
+}
 /**
  * 加载应用特有的语言包
  * 这里也可以改造为从服务端获取翻译数据
  * @param lang
  */
 async function loadMessages(lang: SupportedLanguagesType) {
+  const locale = resolveLocale(lang);
   const [appLocaleMessages] = await Promise.all([
-    localesMap[lang]?.(),
-    loadThirdPartyMessage(lang),
+    localesMap[locale]?.(),
+    loadThirdPartyMessage(locale),
   ]);
   return appLocaleMessages?.default;
 }
@@ -43,7 +49,8 @@ async function loadMessages(lang: SupportedLanguagesType) {
  * @param lang
  */
 async function loadThirdPartyMessage(lang: SupportedLanguagesType) {
-  await Promise.all([loadAntdLocale(lang), loadDayjsLocale(lang)]);
+  const locale = resolveLocale(lang);
+  await Promise.all([loadAntdLocale(locale), loadDayjsLocale(locale)]);
 }
 
 /**
@@ -94,12 +101,16 @@ async function loadAntdLocale(lang: SupportedLanguagesType) {
 }
 
 async function setupI18n(app: App, options: LocaleSetupOptions = {}) {
+  const defaultLocale = resolveLocale(preferences.app.locale);
+  if (preferences.app.locale !== defaultLocale) {
+    updatePreferences({ app: { locale: defaultLocale } });
+  }
   await coreSetup(app, {
-    defaultLocale: preferences.app.locale,
+    defaultLocale,
     loadMessages,
     missingWarn: !import.meta.env.PROD,
     ...options,
   });
 }
 
-export { $t, antdLocale, setupI18n };
+export { $t, antdLocale, resolveLocale, setupI18n };

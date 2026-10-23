@@ -124,9 +124,10 @@ public class SysUserServiceImpl implements ISysUserService {
     public Long saveUser(SysUserCreateDTO dto) {
         lockAndValidateOperator("system:user:create");
         Set<Long> requested = selection(dto.roleIds());
-        if (!requested.isEmpty()) {
-            require("system:user:assign-role");
+        if (requested.isEmpty()) {
+            throw invalid("新增用户至少需要分配一个角色");
         }
+        require("system:user:assign-role");
         validateAssignment(requested, Set.of());
         SysUser user =
                 values(

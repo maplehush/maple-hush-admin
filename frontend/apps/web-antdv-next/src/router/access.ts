@@ -13,6 +13,8 @@ import { SessionChangedError } from '#/auth/session-coordinator';
 import { BasicLayout, IFrameView } from '#/layouts';
 import { $t } from '#/locales';
 
+import { localizeMenuTitleKeys } from './menu-locale';
+
 const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
 
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
@@ -33,9 +35,9 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
       });
       const menus = await getAllMenusApi();
       if (session.state.epoch !== epoch) {
-        throw new SessionChangedError('登录状态已变化，请重新进入页面');
+        throw new SessionChangedError($t('page.auth.errors.sessionChanged'));
       }
-      return menus;
+      return localizeMenuTitleKeys(menus);
     },
     // 可以指定没有权限跳转403页面
     forbiddenComponent,

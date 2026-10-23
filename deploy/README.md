@@ -85,3 +85,7 @@ curl -fsS http://127.0.0.1:8090/api/auth/captcha
 停止使用 `docker compose down`，不附加 `-v`。根项目和独立后端项目不是同一个数据卷，切换部署模式不自动迁移数据；现有数据库/密码变更与迁移要保留备份并单独安排，不能删除旧卷。
 
 实际记录见 [T20 任务卡](../开发文档/任务拆解/T20-仓库根目录一键部署.md)。依据：[Compose include](https://docs.docker.com/reference/compose-file/include/)、[合并覆盖规则](https://docs.docker.com/reference/compose-file/merge/)。
+
+## T21 运维交接
+
+备份/隔离恢复脚本、升级与回退边界、离线恢复及日常操作见 [运维说明](./ops/README.md)。本机原生隔离演练已完成，Docker 容器、异机恢复、两版镜像回退和公网证书未验收；不将本地 HTTPS 结果改记为四服务部署已通过。

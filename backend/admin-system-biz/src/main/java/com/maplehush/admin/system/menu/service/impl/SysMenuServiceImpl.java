@@ -13,7 +13,6 @@ import com.maplehush.admin.system.menu.support.SysMenuRules;
 import com.maplehush.admin.system.menu.vo.MenuRouteVO;
 import com.maplehush.admin.system.menu.vo.SysMenuVO;
 import com.maplehush.admin.system.permission.mapper.PermissionMapper;
-import com.maplehush.admin.system.permission.service.IAuthorizationChangeService;
 import com.maplehush.admin.system.permission.service.IPermissionService;
 import com.maplehush.admin.system.permission.support.PermissionGraph;
 
@@ -29,7 +28,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * 菜单管理、完整路径校验、内置角色授权与版本失效的业务事务
+ * 菜单管理、完整路径校验与内置角色授权的业务事务
  */
 @Service
 public class SysMenuServiceImpl implements ISysMenuService {
@@ -38,21 +37,18 @@ public class SysMenuServiceImpl implements ISysMenuService {
     private final SysMenuInput input;
     private final PermissionGraph graph;
     private final IPermissionService permissions;
-    private final IAuthorizationChangeService changes;
 
     public SysMenuServiceImpl(
             SysMenuMapper mapper,
             PermissionMapper users,
             SysMenuInput input,
             PermissionGraph graph,
-            IPermissionService permissions,
-            IAuthorizationChangeService changes) {
+            IPermissionService permissions) {
         this.mapper = mapper;
         this.users = users;
         this.input = input;
         this.graph = graph;
         this.permissions = permissions;
-        this.changes = changes;
     }
 
     @Transactional(readOnly = true)
@@ -104,7 +100,6 @@ public class SysMenuServiceImpl implements ISysMenuService {
         } catch (DataIntegrityViolationException exception) {
             throw conflict();
         }
-        changes.menusChanged();
         return candidate.getId();
     }
 
@@ -117,6 +112,7 @@ public class SysMenuServiceImpl implements ISysMenuService {
         SysMenu original = getNode(id, menus);
         checkSubtreeScope(id, menus);
         SysMenu candidate = prepare(dto, id, menus);
+        protectDefaultWorkspaceRoute(original, candidate);
         checkScope(candidate, menus, false);
         menus.remove(original);
         menus.add(candidate);
@@ -128,7 +124,6 @@ public class SysMenuServiceImpl implements ISysMenuService {
         } catch (DataIntegrityViolationException exception) {
             throw conflict();
         }
-        changes.menusChanged();
     }
 
     @Transactional
@@ -137,7 +132,10 @@ public class SysMenuServiceImpl implements ISysMenuService {
     public void removeMenu(Long id) {
         lockAndValidateOperator();
         var menus = listNodes();
-        getNode(id, menus);
+        SysMenu original = getNode(id, menus);
+        if (isDefaultWorkspaceNode(original) || isSystemModuleNode(original, menus)) {
+            throw new BusinessException(ErrorCode.CONFLICT, "系统内置菜单不能删除");
+        }
         checkSubtreeScope(id, menus);
         if (menus.stream().anyMatch(menu -> id.equals(menu.getParentId()))) {
             throw new BusinessException(ErrorCode.CONFLICT, "菜单仍有下级，须先处理下级节点");
@@ -154,7 +152,6 @@ public class SysMenuServiceImpl implements ISysMenuService {
                                         && removedPath.contains(menu.getRedirect()))) {
             throw new BusinessException(ErrorCode.CONFLICT, "菜单仍被重定向引用");
         }
-        changes.menusChanged();
         mapper.removeGrants(id);
         if (mapper.deleteById(id) != 1) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "菜单不存在");
@@ -184,6 +181,19 @@ public class SysMenuServiceImpl implements ISysMenuService {
         if (candidate.getParentId() != null && candidate.getParentId().equals(id)) {
             throw SysMenuRules.invalid("菜单不能是自己的父级");
         }
+        if ("link".equals(candidate.getType()) && candidate.getPath() == null) {
+            String parentPath =
+                    candidate.getParentId() == null
+                            ? null
+                            : SysMenuRules.fullPaths(menus).get(candidate.getParentId());
+            if (candidate.getParentId() != null && parentPath == null) {
+                throw SysMenuRules.invalid("父目录不存在或不是路由节点");
+            }
+            candidate.setPath(
+                    parentPath == null
+                            ? "/" + candidate.getName()
+                            : parentPath.replaceAll("/$", "") + "/" + candidate.getName());
+        }
         if (candidate.getPath() != null) {
             String parentPath =
                     candidate.getParentId() == null
@@ -204,6 +214,56 @@ public class SysMenuServiceImpl implements ISysMenuService {
                 checkSubtreeScope(node.getId(), menus);
             }
         }
+    }
+
+    /**
+     * Keeps the default home route stable while allowing its label, icon, and order to change.
+     */
+    private void protectDefaultWorkspaceRoute(SysMenu original, SysMenu candidate) {
+        if (!isDefaultWorkspaceNode(original)) {
+            return;
+        }
+        boolean validCatalog =
+                "Dashboard".equals(original.getName())
+                        && Objects.equals(candidate.getName(), original.getName())
+                        && candidate.getParentId() == null
+                        && "catalog".equals(candidate.getType())
+                        && "/dashboard".equals(candidate.getPath())
+                        && candidate.getComponent() == null;
+        boolean validWorkspace =
+                "Workspace".equals(original.getName())
+                        && Objects.equals(candidate.getName(), original.getName())
+                        && Objects.equals(candidate.getParentId(), original.getParentId())
+                        && "menu".equals(candidate.getType())
+                        && "workspace".equals(candidate.getPath())
+                        && "/dashboard/workspace/index".equals(candidate.getComponent());
+        if (!(validCatalog || validWorkspace) || !Integer.valueOf(1).equals(candidate.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.CONFLICT, "默认工作台菜单的路由结构和启用状态不可修改");
+        }
+    }
+
+    private boolean isDefaultWorkspaceNode(SysMenu menu) {
+        return "Dashboard".equals(menu.getName()) || "Workspace".equals(menu.getName());
+    }
+
+    private boolean isSystemModuleNode(SysMenu menu, List<SysMenu> menus) {
+        SysMenu current = menu;
+        while (current != null) {
+            if ("System".equals(current.getName())) {
+                return true;
+            }
+            Long parentId = current.getParentId();
+            if (parentId == null) {
+                return false;
+            }
+            current =
+                    menus.stream()
+                            .filter(node -> parentId.equals(node.getId()))
+                            .findFirst()
+                            .orElse(null);
+        }
+        return false;
     }
 
     private void checkScope(SysMenu node, List<SysMenu> menus, boolean existing) {

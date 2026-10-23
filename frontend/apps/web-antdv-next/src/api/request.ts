@@ -8,6 +8,10 @@ import {
 import { message } from 'antdv-next';
 
 import { session } from '#/auth/session';
+import { SessionChangedError } from '#/auth/session-coordinator';
+import { $t } from '#/locales';
+
+import { resolveApiErrorMessage } from './error-message';
 // 平台 API 固定同源 /api，认证 cookie 不发送到外部地址。
 export const requestClient = new RequestClient({
   baseURL: '/api',
@@ -20,7 +24,7 @@ requestClient.addRequestInterceptor({
     const metadata = config as typeof config & { sessionEpoch?: string };
     metadata.sessionEpoch ??= state.epoch;
     if (metadata.sessionEpoch !== state.epoch) {
-      throw new Error('登录状态已变化，请重新操作');
+      throw new SessionChangedError($t('errors.sessionChanged'));
     }
     config.headers.Authorization = state.token
       ? `Bearer ${state.token}`
@@ -57,7 +61,13 @@ requestClient.addResponseInterceptor({
   },
 });
 requestClient.addResponseInterceptor(
-  errorMessageResponseInterceptor((text, error) => {
-    message.error(error?.response?.data?.message || error?.message || text);
+  errorMessageResponseInterceptor((_text, error) => {
+    if (error instanceof SessionChangedError) {
+      message.error($t('errors.sessionChanged'));
+      return;
+    }
+    message.error(
+      resolveApiErrorMessage(error?.response?.data, preferences.app.locale, $t),
+    );
   }),
 );

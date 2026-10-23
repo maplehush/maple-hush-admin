@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { VbenFormSchema } from '#/adapter/form';
-import type { MenuSave, MenuType, SystemMenu } from '#/api/system/menu';
+import type { MenuSave, MenuType } from '#/api/system/menu';
 
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import { useVbenDrawer } from '@vben/common-ui';
 import { $te } from '@vben/locales';
@@ -21,14 +21,20 @@ import {
   updateMenu,
 } from '#/api/system/menu';
 import { $t } from '#/locales';
-import { useAuthStore } from '#/store';
+import { refreshAccessRoutes } from '#/router/refresh-access';
 
 import {
+  getMenuTypeOptions,
+  isMenuParentRequired,
+  MENU_PATH_PATTERN,
   menuPayload,
   optionalActivePathRule,
   parentOptions,
-} from '../form-model';
-defineEmits<{ success: [] }>();
+  validateMenuNameAvailability,
+  validateMenuPathAvailability,
+} from '../data';
+
+const emit = defineEmits<{ success: [] }>();
 
 const componentKeys = [
   '/system/user/list',
@@ -36,18 +42,15 @@ const componentKeys = [
   '/system/menu/list',
   '/system/dept/list',
   '/system/dict/list',
-  '/system/login-log/list',
-  '/system/operation-log/list',
+  '/log/login/list',
+  '/log/operation/list',
 ];
-
-import { getMenuTypeOptions } from '../data';
 
 const formData = ref<SystemMenuApi.SystemMenu>();
 const ready = ref(false);
 const titleSuffix = ref<string>();
-const menuTree = ref<SystemMenu[]>([]);
+const menuTree = ref<SystemMenuApi.SystemMenu[]>([]);
 const access = useAccessStore();
-const auth = useAuthStore();
 const can = (action: string) =>
   access.accessCodes.includes(`system:menu:${action}`);
 
@@ -77,10 +80,14 @@ function decodeMenuFormValues(
   } else if (values.type === 'embedded') {
     linkSrc = values.meta?.iframeSrc;
   }
-  return { ...values, linkSrc };
+  return {
+    ...values,
+    linkSrc,
+    pid: values.pid ? String(values.pid) : undefined,
+  };
 }
 
-const schema: VbenFormSchema<MenuFormValues>[] = [
+const schema = computed<VbenFormSchema<MenuFormValues>[]>(() => [
   {
     component: 'RadioGroup',
     componentProps: {
@@ -88,7 +95,7 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
       options: getMenuTypeOptions(),
       optionType: 'button',
     },
-    defaultValue: 'menu',
+    defaultValue: 'catalog',
     fieldName: 'type',
     formItemClass: 'col-span-2 md:col-span-2',
     label: $t('system.menu.type'),
@@ -99,14 +106,16 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
     label: $t('system.menu.menuName'),
     rules: z
       .string()
-      .regex(
-        /^[A-Za-z][A-Za-z0-9_-]{0,99}$/,
-        '英文开头，字母/数字/_/-，至多100位',
-      )
+      .trim()
+      .min(1, $t('system.menu.nameRequired'))
+      .regex(/^[A-Za-z][A-Za-z0-9_-]{0,99}$/, $t('system.menu.nameFormat'))
       .refine(
-        async (value: string) => {
-          return !(await isMenuNameExists(value, formData.value?.id));
-        },
+        async (value: string) =>
+          validateMenuNameAvailability(
+            value,
+            (name) => isMenuNameExists(name, formData.value?.id),
+            $t('system.menu.nameCheckFailed'),
+          ),
         {
           error: (issue) =>
             $t('ui.formRules.alreadyExists', [
@@ -125,12 +134,14 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
       class: 'w-full',
     },
     dependencies: {
+      rules: (values) =>
+        isMenuParentRequired(values.type ?? 'catalog') ? 'required' : null,
       triggerFields: ['type'],
       componentProps: (values) => ({
         treeData: parentOptions(
           menuTree.value,
           formData.value?.id,
-          values.type ?? 'menu',
+          values.type ?? 'catalog',
         ),
       }),
     },
@@ -150,40 +161,61 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
     },
     fieldName: 'meta.title',
     label: $t('system.menu.menuTitle'),
-    rules: z.string().trim().min(1, '请填写菜单标题').max(200),
+    rules: z.string().trim().min(1, $t('system.menu.titleRequired')).max(200),
   },
   {
     component: 'Input',
     dependencies: {
-      show: (values) => {
-        return values.type !== 'button';
-      },
+      rules: (values) =>
+        ['button', 'link'].includes(values.type ?? 'menu')
+          ? null
+          : z
+              .string()
+              .trim()
+              .min(1, $t('system.menu.pathRequired'))
+              .regex(MENU_PATH_PATTERN, $t('system.menu.pathFormat'))
+              .max(255)
+              .refine(
+                async (value: string) =>
+                  validateMenuPathAvailability(
+                    value,
+                    (path) => isMenuPathExists(path, formData.value?.id),
+                    $t('system.menu.pathCheckFailed'),
+                  ),
+                {
+                  error: (issue) =>
+                    $t('ui.formRules.alreadyExists', [
+                      $t('system.menu.path'),
+                      issue.input,
+                    ]),
+                },
+              ),
+      show: (values) => !['button', 'link'].includes(values.type ?? 'menu'),
       triggerFields: ['type'],
     },
     fieldName: 'path',
     label: $t('system.menu.path'),
-    rules: z
-      .string()
-      .startsWith('/', '请输入完整路由路径')
-      .max(255)
-      .refine(
-        async (value: string) => {
-          return !(await isMenuPathExists(value, formData.value?.id));
-        },
-        {
-          error: (issue) =>
-            $t('ui.formRules.alreadyExists', [
-              $t('system.menu.path'),
-              issue.input,
-            ]),
-        },
-      ),
   },
   {
     component: 'Input',
     dependencies: {
+      rules: (values) => {
+        if (!['embedded', 'link'].includes(values.type ?? 'menu')) return null;
+        return z.url($t('ui.formRules.invalidURL')).refine((value) => {
+          try {
+            const url = new URL(value);
+            return (
+              ['http:', 'https:'].includes(url.protocol) &&
+              !url.username &&
+              !url.password
+            );
+          } catch {
+            return false;
+          }
+        }, $t('system.menu.linkFormat'));
+      },
       show: (values) => {
-        return ['embedded', 'menu'].includes(values.type ?? 'menu');
+        return ['embedded', 'link'].includes(values.type ?? 'menu');
       },
       triggerFields: ['type'],
     },
@@ -254,18 +286,6 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
     },
     fieldName: 'linkSrc',
     label: $t('system.menu.linkSrc'),
-    rules: z.url($t('ui.formRules.invalidURL')).refine((value) => {
-      try {
-        const url = new URL(value);
-        return (
-          ['http:', 'https:'].includes(url.protocol) &&
-          !url.username &&
-          !url.password
-        );
-      } catch {
-        return false;
-      }
-    }, '仅支持无账号凭据的 HTTP/HTTPS 地址'),
   },
   {
     component: 'Input',
@@ -461,20 +481,20 @@ const schema: VbenFormSchema<MenuFormValues>[] = [
   {
     component: 'InputNumber',
     fieldName: 'meta.order',
-    label: '排序',
+    label: $t('system.menu.sort'),
     defaultValue: 0,
     componentProps: { precision: 0 },
   },
   {
     component: 'Input',
     fieldName: 'redirect',
-    label: '重定向',
+    label: $t('system.menu.redirect'),
     dependencies: {
       show: (values) => !['button', 'link'].includes(values.type ?? 'menu'),
       triggerFields: ['type'],
     },
   },
-];
+]);
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
 const isHorizontal = computed(() => breakpoints.greaterOrEqual('md').value);
@@ -488,10 +508,11 @@ const [Form, formApi] = useVbenForm({
     colon: true,
     formItemClass: 'col-span-2 md:col-span-1',
   },
-  schema,
+  schema: schema.value,
   showDefaultActions: false,
   wrapperClass: 'grid-cols-2 gap-x-4',
 });
+watch(schema, (nextSchema) => formApi.setState({ schema: nextSchema }));
 const [Drawer, drawerApi] = useVbenDrawer<MenuDrawerData>({
   onConfirm: onSubmit,
   async onOpenChange(isOpen) {
@@ -521,7 +542,7 @@ const [Drawer, drawerApi] = useVbenDrawer<MenuDrawerData>({
         ready.value = true;
         drawerApi.setState({ showConfirmButton: true });
       } catch {
-        message.error('菜单加载失败，请关闭后重试');
+        message.error($t('system.menu.loadError'));
       } finally {
         drawerApi.setState({ loading: false });
       }
@@ -534,28 +555,30 @@ defineExpose({ drawerApi });
 async function onSubmit() {
   if (!ready.value) return;
   const { valid } = await formApi.validate();
-  if (valid) {
-    drawerApi.lock();
+  if (!valid) return;
+
+  drawerApi.lock();
+  try {
     const data = await formApi.getValues();
-    if (formData.value ? !can('update') : !can('create')) {
-      drawerApi.unlock();
-      return;
-    }
+    if (formData.value ? !can('update') : !can('create')) return;
     if (data.type === 'button' && !data.pid) {
-      message.warning('按钮必须选择所属页面');
-      drawerApi.unlock();
+      message.warning($t('system.menu.buttonParentRequired'));
       return;
     }
+
+    await (formData.value?.id
+      ? updateMenu(formData.value.id, data)
+      : createMenu(data));
+    drawerApi.close();
+    emit('success');
     try {
-      await (formData.value?.id
-        ? updateMenu(formData.value.id, data)
-        : createMenu(data));
-      drawerApi.close();
-      message.success('菜单已保存，登录权限已失效，请重新登录');
-      await auth.logout();
-    } finally {
-      drawerApi.unlock();
+      await refreshAccessRoutes();
+      message.success($t('system.menu.saved'));
+    } catch {
+      message.warning($t('system.menu.refreshFailed'));
     }
+  } finally {
+    drawerApi.unlock();
   }
 }
 const getDrawerTitle = computed(() =>

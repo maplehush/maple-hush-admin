@@ -116,6 +116,7 @@ setupVbenVxeTable({
           unCheckedValue: 0,
           ...props,
           checked: row[column.field],
+          disabled: attrs?.isDisabled?.(row) ?? false,
           loading: row[loadingKey] ?? false,
           'onUpdate:checked': onChange,
         };

@@ -1,6 +1,6 @@
 ports:
-  - port: 5555
+  - port: 5999
     onOpen: open-preview
 tasks:
   - init: npm i -g corepack && pnpm install
-    command: pnpm run dev:play
+    command: pnpm run dev:antdv-next

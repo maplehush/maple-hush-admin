@@ -7,12 +7,26 @@ import { startProgress, stopProgress } from '@vben/utils';
 import { message } from 'antdv-next';
 
 import { session } from '#/auth/session';
+import { $t } from '#/locales';
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
 
 import { generateAccess } from './access';
 export function createRouterGuard(router: Router) {
   router.beforeEach(async (to) => {
+    const legacyLogPath: Record<string, string> = {
+      '/log/login-log': '/system/log/login-log',
+      '/log/operation-log': '/system/log/operation-log',
+    };
+    const currentLogPath = legacyLogPath[to.path];
+    if (currentLogPath) {
+      return {
+        path: currentLogPath,
+        query: to.query,
+        hash: to.hash,
+        replace: true,
+      };
+    }
     if (preferences.transition.progress) {
       startProgress();
     }
@@ -33,7 +47,8 @@ export function createRouterGuard(router: Router) {
       };
     }
     if (access.isAccessChecked) {
-      return to.name === 'FallbackNotFound' && /^\/(?:system|log)(?:\/|$)/.test(to.path)
+      return to.name === 'FallbackNotFound' &&
+        /^\/(?:system|log)(?:\/|$)/.test(to.path)
         ? '/forbidden'
         : true;
     }
@@ -56,7 +71,7 @@ export function createRouterGuard(router: Router) {
       if (!session.state.token) {
         return '/auth/login';
       }
-      message.error('用户或权限加载失败，请稍后刷新重试');
+      message.error($t('page.auth.errors.accessLoad'));
       return false;
     }
   });

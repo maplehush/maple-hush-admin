@@ -1,5 +1,7 @@
 package com.maplehush.admin;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -102,6 +104,7 @@ class FileUploadIT {
     private final HttpClient client = HttpClient.newHttpClient();
     private long admin;
     private long builtin;
+    private long uploadRole;
     private String access;
 
     @BeforeEach
@@ -112,10 +115,14 @@ class FileUploadIT {
                         "SELECT id FROM sys_role WHERE role_code='super_admin'", Long.class);
         jdbc.update("UPDATE sys_user SET must_change_password=0 WHERE id=?", admin);
         access = sessions.open(admin, 0).accessToken();
+        jdbc.update("INSERT INTO sys_role(role_code,role_name,status) VALUES ('upload_test_role','上传测试角色',1)");
+        uploadRole = jdbc.queryForObject("SELECT id FROM sys_role WHERE role_code='upload_test_role'", Long.class);
     }
 
     @AfterEach
     void clean() {
+        redis.delete(java.util.List.of(keys.key("upload_minute", Long.toString(admin)),
+                keys.key("upload_day", Long.toString(admin))));
         jdbc.update("DELETE FROM sys_dict_item");
         jdbc.update("DELETE FROM sys_dict_type");
         jdbc.update("DELETE FROM auth_refresh_session");
@@ -128,6 +135,23 @@ class FileUploadIT {
             redis.delete(keys.key("user", id.toString()));
         }
         jdbc.update("DELETE FROM sys_user WHERE id<>?", admin);
+    }
+
+    @Test
+    void redisUploadQuotaLimitsBothWindowsAndExpiresCounters() {
+        var limiter = new com.maplehush.admin.system.file.support.UploadRateLimiter(redis, keys, 2, 3);
+        limiter.reserve(admin);
+        limiter.reserve(admin);
+        assertEquals(com.maplehush.admin.common.exception.ErrorCode.RATE_LIMITED,
+                assertThrows(com.maplehush.admin.common.exception.BusinessException.class,
+                        () -> limiter.reserve(admin)).getErrorCode());
+        assertTrue(redis.getExpire(keys.key("upload_minute", Long.toString(admin))) > 0);
+        redis.delete(keys.key("upload_minute", Long.toString(admin)));
+        limiter.reserve(admin);
+        assertEquals(com.maplehush.admin.common.exception.ErrorCode.RATE_LIMITED,
+                assertThrows(com.maplehush.admin.common.exception.BusinessException.class,
+                        () -> limiter.reserve(admin)).getErrorCode());
+        assertTrue(redis.getExpire(keys.key("upload_day", Long.toString(admin))) > 0);
     }
 
     @Test
@@ -212,6 +236,8 @@ class FileUploadIT {
                                         "arbitrary_url",
                                         "name",
                                         "拒绝",
+                                        "roleIds",
+                                        java.util.List.of(Long.toString(uploadRole)),
                                         "avatar",
                                         file.get("url").asString()),
                                 access)
@@ -253,6 +279,7 @@ class FileUploadIT {
         var body = new java.util.HashMap<String, Object>();
         body.put("username", username);
         body.put("name", "头像绑定");
+        body.put("roleIds", java.util.List.of(Long.toString(uploadRole)));
         if (receipt != null) {
             body.put("avatarUploadId", receipt);
         }

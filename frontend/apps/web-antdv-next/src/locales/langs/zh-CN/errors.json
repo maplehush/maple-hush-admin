@@ -1,0 +1,20 @@
+{
+  "invalidRequest": "请求格式不正确，请检查后重试",
+  "invalidArgument": "请求参数无效，请检查填写内容",
+  "captchaInvalid": "验证码错误或已失效，请重新获取",
+  "unauthenticated": "登录已失效，请重新登录",
+  "invalidCredentials": "账号或密码错误",
+  "forbidden": "没有操作权限",
+  "csrfInvalid": "请求校验失败，请重试",
+  "notFound": "请求的资源不存在",
+  "conflict": "数据重复或状态冲突，请刷新后重试",
+  "rateLimited": "操作过于频繁或次数已达限制，请稍后重试",
+  "unavailable": "服务暂不可用，请稍后重试",
+  "internal": "服务器暂时无法处理请求",
+  "requestFailed": "请求失败，请稍后重试",
+  "invalidLoginResponse": "登录响应格式不正确，请重新登录",
+  "invalidRefreshResponse": "刷新响应格式不正确，请重新登录",
+  "sessionChanged": "登录状态已变化，请重新操作",
+  "passwordUpdated": "密码修改成功，请使用新密码登录",
+  "logoutUnconfirmed": "本地已退出，服务端退出未确认，请稍后重试"
+}

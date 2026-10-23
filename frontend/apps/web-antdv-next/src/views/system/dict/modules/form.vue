@@ -10,9 +10,10 @@ import { message } from 'antdv-next';
 
 import { useVbenForm } from '#/adapter/form';
 import { dictApi } from '#/api/system/dict';
+import { $t } from '#/locales';
 
 import { formSchema } from '../data';
-import { dictItemPayload } from '../model';
+import { dictItemPayload } from '../data';
 const emit = defineEmits<{ success: [] }>();
 const ready = ref(false);
 const data = ref<{ kind: 'item' | 'type'; id?: string; dictTypeId?: string }>({
@@ -62,7 +63,7 @@ const [Drawer, drawerApi] = useVbenDrawer<{
       ready.value = true;
       drawerApi.setState({ showConfirmButton: true });
     } catch {
-      message.error('字典详情加载失败，请关闭后重试');
+      message.error($t('system.dict.detailLoad'));
     } finally {
       drawerApi.setState({ loading: false });
     }
@@ -104,7 +105,7 @@ const [Drawer, drawerApi] = useVbenDrawer<{
           }),
         );
       }
-      message.success('保存成功');
+      message.success($t('system.dict.saveSuccess'));
       drawerApi.close();
       emit('success');
     } finally {
@@ -115,7 +116,13 @@ const [Drawer, drawerApi] = useVbenDrawer<{
 </script>
 <template>
   <Drawer
-    :title="data.id ? '编辑' : data.kind === 'type' ? '新增类型' : '新增字典项'"
+    :title="
+      data.id
+        ? $t('system.dict.edit')
+        : data.kind === 'type'
+          ? $t('system.dict.addType')
+          : $t('system.dict.addItem')
+    "
   >
     <Form />
   </Drawer>

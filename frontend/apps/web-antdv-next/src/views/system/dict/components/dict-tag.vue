@@ -3,7 +3,7 @@ import type { DictOption } from '#/api/system/dict';
 
 import { Tag } from 'antdv-next';
 
-import { colorText } from '../model';
+import { colorText } from '../data';
 defineProps<{ option: Pick<DictOption, 'color' | 'label'> }>();
 </script>
 <template>
@@ -17,6 +17,7 @@ defineProps<{ option: Pick<DictOption, 'color' | 'label'> }>();
           }
         : undefined
     "
-    >{{ option.label }}</Tag
   >
+    {{ option.label }}
+  </Tag>
 </template>

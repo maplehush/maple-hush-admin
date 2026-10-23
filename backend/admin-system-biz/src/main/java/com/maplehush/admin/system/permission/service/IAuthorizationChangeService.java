@@ -14,11 +14,6 @@ public interface IAuthorizationChangeService {
     void roleChanged(long roleId);
 
     /**
-     * 在业务事务内使已授权用户的版本和缓存失效
-     */
-    void menusChanged();
-
-    /**
      * 在业务事务内使指定用户的版本和缓存失效
      *
      * @param userIds 受影响用户 ID 集合；实现会去重并按 ID 排序

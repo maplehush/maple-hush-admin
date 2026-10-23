@@ -5,25 +5,19 @@ const coreRoutes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('#/layouts/basic.vue'),
     redirect: '/dashboard/workspace',
-    meta: { hideInBreadcrumb: true, title: 'Root' },
+    meta: { hideInBreadcrumb: true, title: 'page.root' },
     children: [
-      {
-        name: 'Workspace',
-        path: '/dashboard/workspace',
-        component: () => import('#/views/_core/home/index.vue'),
-        meta: { title: '工作台' },
-      },
       {
         name: 'Profile',
         path: '/profile',
         component: () => import('#/views/_core/profile/index.vue'),
-        meta: { title: '个人中心', hideInMenu: true },
+        meta: { title: 'page.profile.title', hideInMenu: true },
       },
       {
         name: 'Forbidden',
         path: '/forbidden',
         component: () => import('#/views/_core/fallback/forbidden.vue'),
-        meta: { title: '无权访问', hideInMenu: true },
+        meta: { title: 'page.fallback.forbidden', hideInMenu: true },
       },
     ],
   },
@@ -32,20 +26,20 @@ const coreRoutes: RouteRecordRaw[] = [
     path: '/auth',
     redirect: '/auth/login',
     component: () => import('#/layouts/auth.vue'),
-    meta: { hideInTab: true, title: '登录认证' },
+    meta: { hideInTab: true, title: 'page.auth.title' },
     children: [
       {
         name: 'Login',
         path: 'login',
         component: () => import('#/views/_core/authentication/login.vue'),
-        meta: { title: '登录' },
+        meta: { title: 'page.auth.login' },
       },
       {
         name: 'InitialPassword',
         path: 'initial-password',
         component: () =>
           import('#/views/_core/authentication/initial-password.vue'),
-        meta: { title: '首次登录修改密码' },
+        meta: { title: 'page.auth.initialPassword' },
       },
     ],
   },

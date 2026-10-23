@@ -16,7 +16,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import org.springframework.web.servlet.HandlerMapping;
 
 /**
  * 切面位于事务拦截器外层，成功只在真实提交后记录；不采集参数或异常内容
@@ -74,9 +73,8 @@ public class OperationLogAspect {
             var request = attributes.getRequest();
             method = request.getMethod();
             ip = request.getRemoteAddr();
-            Object pattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-            // 只记录服务端路由模板，避免路径参数和查询参数泄露个人信息。
-            path = pattern == null ? null : pattern.toString();
+            // 记录实际请求路径；不拼接查询串，避免将凭据等查询参数写入审计。
+            path = request.getRequestURI();
         }
         String target = null;
         int index = operation.targetIdArgument();

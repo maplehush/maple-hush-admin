@@ -31,6 +31,9 @@ logging:
   pattern:
     level: "%5p [traceId=%X{traceId}]"
 maple-hush:
+  file:
+    upload-per-minute: ${FILE_UPLOAD_PER_MINUTE:10}
+    upload-per-day: ${FILE_UPLOAD_PER_DAY:100}
   auth:
     bootstrap-enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
     bootstrap-username: ${ADMIN_BOOTSTRAP_USERNAME:admin}

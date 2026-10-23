@@ -22,7 +22,7 @@ const [Drawer, drawerApi] = useVbenDrawer<UserRecord>({
     try {
       detailData.value = await getUser(drawerApi.getData()!.id);
     } catch {
-      error.value = '读取用户详情失败，请关闭后重试';
+      error.value = $t('system.user.errors.detailLoad');
     } finally {
       drawerApi.setState({ loading: false });
     }
@@ -36,7 +36,7 @@ defineExpose({ drawerApi });
     <img
       v-if="detailData?.avatar"
       :src="detailData.avatar"
-      alt="用户头像"
+      :alt="$t('system.user.avatar')"
       class="mt-4 size-20 rounded object-cover"
     />
     <p v-if="error" role="alert" class="text-destructive">{{ error }}</p>

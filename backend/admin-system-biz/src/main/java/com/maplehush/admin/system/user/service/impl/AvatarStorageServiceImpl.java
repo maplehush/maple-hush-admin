@@ -2,6 +2,7 @@ package com.maplehush.admin.system.user.service.impl;
 
 import com.maplehush.admin.common.storage.config.OssProperties;
 import com.maplehush.admin.common.storage.service.IOssStorageService;
+import com.maplehush.admin.system.file.support.UploadRateLimiter;
 import com.maplehush.admin.system.user.service.IAvatarStorageService;
 
 import org.slf4j.Logger;
@@ -19,15 +20,19 @@ public class AvatarStorageServiceImpl implements IAvatarStorageService {
     private static final Logger LOG = LoggerFactory.getLogger(AvatarStorageServiceImpl.class);
     private final IOssStorageService storage;
     private final OssProperties properties;
+    private final UploadRateLimiter limits;
     private final AtomicLong cleanupFailures = new AtomicLong();
 
-    public AvatarStorageServiceImpl(IOssStorageService storage, OssProperties properties) {
+    public AvatarStorageServiceImpl(
+            IOssStorageService storage, OssProperties properties, UploadRateLimiter limits) {
         this.storage = storage;
         this.properties = properties;
+        this.limits = limits;
     }
 
     @Override
     public String upload(long userId, byte[] png) {
+        limits.reserve(userId);
         String key =
                 properties.getObjectPrefix()
                         + userId

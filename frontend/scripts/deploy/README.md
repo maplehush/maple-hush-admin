@@ -40,7 +40,7 @@ docker compose up -d --build --wait --wait-timeout 300
 docker compose logs --tail 100 frontend
 ```
 
-脚本在 Docker 内执行冻结锁安装与目标构建，宿主机无需先安装 pnpm；构建失败立即退出，不打印成功，也不先删旧镜像。脚本自定义镜像名若要供 Compose 使用，需与 Compose 解析的 image 一致，或用受控 override 指定 image。发布时设置明确的 `FRONTEND_IMAGE_TAG`，镜像基础版本固定到已验证 digest；保留上个已验收版本以便回滚。上游 `.github/workflows/deploy.yml` 的 Playground/FTP 工作流仅作参考，已排除出构建上下文，不用作本平台发布入口。
+脚本在 Docker 内执行冻结锁安装与目标构建，宿主机无需先安装 pnpm；构建失败立即退出，不打印成功，也不先删旧镜像。脚本自定义镜像名若要供 Compose 使用，需与 Compose 解析的 image 一致，或用受控 override 指定 image。发布时设置明确的 `FRONTEND_IMAGE_TAG`，镜像基础版本固定到已验证 digest；保留上个已验收版本以便回滚。上游演示站的 `frontend/.github/` 已清理；本项目检查流程统一使用仓库根目录 `.github/workflows/ci.yml`，产品发布使用本部署目录的脚本与 Compose。
 
 Nginx 以非 root 用户、只读根文件系统运行，PID 和所有临时目录写入 `/tmp` tmpfs。`/healthz` 只表示前端静态服务存活，后端故障可能使 `/api` 返回 502/503，此时前端仍 healthy；不能将此前端探针作为整个系统 readiness。后端就绪状态使用 T18 探针。日志写到标准输出/错误，Compose 限制大小；unhealthy 本身不会触发 `unless-stopped` 重启。
 

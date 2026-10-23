@@ -5,10 +5,11 @@ import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { DeptRecord } from '#/api/system/dept';
 import type { UserRecord } from '#/api/system/user';
 
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import { Page, Tree, useVbenDrawer } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
+import { preferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
 
 import { Button, Card, InputSearch, message, Modal } from 'antdv-next';
@@ -20,10 +21,7 @@ import { $t } from '#/locales';
 import { createDateRangeCodec } from '#/utils/date-range-codec';
 
 import { useColumns, useGridFormSchema } from './data';
-import {
-  canManageProtectedAction,
-  departmentIdFromTreeEvent,
-} from './form-policy';
+import { canManageProtectedAction, departmentIdFromTreeEvent } from './data';
 import Detail from './modules/detail.vue';
 import Form from './modules/form.vue';
 import Roles from './modules/roles.vue';
@@ -115,6 +113,13 @@ const [Grid, gridApi] = useVbenVxeGrid({
     },
   } as VxeTableGridOptions<UserRecord>,
 });
+watch(
+  () => preferences.app.locale,
+  () => {
+    gridApi.setGridOptions({ columns: useColumns() });
+    gridApi.formApi.setState({ schema: useGridFormSchema() });
+  },
+);
 
 /**
  * 将Antd的Modal.confirm封装为promise，方便在异步函数中调用。
@@ -178,13 +183,17 @@ async function loadDeptList() {
     const res = await getDeptList();
     deptList.value = res;
   } catch (error) {
-    message.error('部门列表加载失败，请稍后重试');
+    message.error($t('system.user.errors.deptLoad'));
   }
 }
 
 function selectDept(event?: unknown) {
   try {
-    selectedDeptId.value = departmentIdFromTreeEvent(event) ?? '';
+    const clickedDeptId = departmentIdFromTreeEvent(event);
+    selectedDeptId.value =
+      clickedDeptId && clickedDeptId !== selectedDeptId.value
+        ? clickedDeptId
+        : '';
     gridApi.query();
   } catch (cause) {
     message.error((cause as Error).message);
@@ -201,11 +210,11 @@ async function onReset(row: UserRecord) {
   if (!canManageProtectedAction(row)) return;
   try {
     await confirm(
-      '密码将重置为12345678，目标旧会话失效，下次登录必须改密。',
-      `重置 ${row.username} 密码？`,
+      $t('system.user.resetConfirmContent'),
+      $t('system.user.resetConfirmTitle', { username: row.username }),
     );
     await resetUserPassword(row.id);
-    message.success('密码已重置');
+    message.success($t('system.user.resetPasswordSuccess'));
   } catch {
     /* 取消或失败保留列表；请求层展示错误。 */
   }
@@ -225,9 +234,15 @@ function rowActions(row: UserRecord, dropdown = false) {
       onClick: () => onEdit(row),
     });
   if (dropdown && can('assign-role') && canManageProtectedAction(row))
-    actions.push({ text: '分配角色', onClick: () => onRoles(row) });
+    actions.push({
+      text: $t('system.user.assignRoles'),
+      onClick: () => onRoles(row),
+    });
   if (dropdown && can('reset-password') && canManageProtectedAction(row))
-    actions.push({ text: '重置密码', onClick: () => onReset(row) });
+    actions.push({
+      text: $t('system.user.resetPassword'),
+      onClick: () => onReset(row),
+    });
   if (dropdown && can('delete') && canManageProtectedAction(row))
     actions.push({
       text: $t('common.delete'),
@@ -249,36 +264,38 @@ function rowActions(row: UserRecord, dropdown = false) {
     <RolesDrawer @success="onRefresh" />
     <div class="flex size-full gap-4">
       <Card v-if="canListDept" class="w-60 shrink-0">
-        <Button type="link" class="mb-2" @click="selectDept()">
-          全部部门（清除筛选）
-        </Button>
         <InputSearch
           v-model:value="inputSearchValue"
           :placeholder="$t('system.user.placeholder')"
         />
         <div class="mt-4">
-        <Tree
-          :model-value="selectedDeptId || undefined"
-          label-field="name"
-          value-field="id"
-          :tree-data="filteredDepts"
-          :default-expanded-level="2"
-          @select="selectDept"
-        />
+          <Tree
+            allow-clear
+            :model-value="selectedDeptId || undefined"
+            label-field="name"
+            value-field="id"
+            :tree-data="filteredDepts"
+            :default-expanded-level="2"
+            @select="selectDept"
+          />
         </div>
       </Card>
       <div class="min-w-0 flex-1">
         <Grid :table-title="$t('system.user.list')">
           <template #toolbar-tools>
-            <Button v-if="can('create')" type="primary" @click="onCreate">
+            <Button
+              v-if="can('create') && can('assign-role')"
+              type="primary"
+              @click="onCreate"
+            >
               <Plus class="size-5" />
-              {{ $t('ui.actionTitle.create', ['用户']) }}
+              {{ $t('ui.actionTitle.create', [$t('system.user.entity')]) }}
             </Button>
           </template>
           <template #action="{ row }">
             <VbenTableAction
               :actions="rowActions(row)"
-              more-text="更多"
+              :more-text="$t('system.user.more')"
               :dropdown-actions="rowActions(row, true)"
               align="center"
             />

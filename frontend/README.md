@@ -36,18 +36,6 @@ pnpm --filter @vben/web-antdv-next typecheck
 pnpm --filter @vben/web-antdv-next build
 ```
 
-## 预览
-
-- [Vben Admin](https://vben.pro/)：Vben 官方演示站
-
-以下为 Vben 官方项目预览图：
-
-<div align="center">
-  <img alt="Vben Admin 预览图一" width="100%" src="https://anncwb.github.io/anncwb/images/preview1.png">
-  <img alt="Vben Admin 预览图二" width="100%" src="https://anncwb.github.io/anncwb/images/preview2.png">
-  <img alt="Vben Admin 预览图三" width="100%" src="https://anncwb.github.io/anncwb/images/preview3.png">
-</div>
-
 ## 来源与许可
 
 前端基于 [Vue Vben Admin](https://github.com/vbenjs/vue-vben-admin)，迁入版本为提交 `151d80f9e5fb63f2ed8a8c432e1adf2eba253271`，组件使用方式可参考 [Vben 官方文档](https://doc.vben.pro/)。

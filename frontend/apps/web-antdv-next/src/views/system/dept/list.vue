@@ -5,8 +5,11 @@ import type {
 } from '#/adapter/vxe-table';
 import type { DeptRecord } from '#/api/system/dept';
 
-import { Page, useVbenModal } from '@vben/common-ui';
+import { watch } from 'vue';
+
+import { Page, useVbenDrawer } from '@vben/common-ui';
 import { Plus } from '@vben/icons';
+import { preferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
 
 import { Button, message } from 'antdv-next';
@@ -21,7 +24,7 @@ const access = useAccessStore();
 const can = (action: string) =>
   access.accessCodes.includes(`system:dept:${action}`);
 
-const [FormModal, formModalApi] = useVbenModal({
+const [FormDrawer, formDrawerApi] = useVbenDrawer({
   connectedComponent: Form,
   destroyOnClose: true,
 });
@@ -31,7 +34,7 @@ const [FormModal, formModalApi] = useVbenModal({
  * @param row
  */
 function onEdit(row: DeptRecord) {
-  formModalApi.setData(row).open();
+  formDrawerApi.setData(row).open();
 }
 
 /**
@@ -39,14 +42,14 @@ function onEdit(row: DeptRecord) {
  * @param row
  */
 function onAppend(row: DeptRecord) {
-  formModalApi.setData({ pid: row.id }).open();
+  formDrawerApi.setData({ pid: row.id }).open();
 }
 
 /**
  * 创建新部门
  */
 function onCreate() {
-  formModalApi.setData(null).open();
+  formDrawerApi.setData(null).open();
 }
 
 /**
@@ -122,6 +125,12 @@ const [Grid, gridApi] = useVbenVxeGrid({
     },
   } as VxeTableGridOptions,
 });
+watch(
+  () => preferences.app.locale,
+  () => {
+    gridApi.setGridOptions({ columns: useColumns(onActionClick, can) });
+  },
+);
 
 /**
  * 刷新表格
@@ -132,8 +141,8 @@ function refreshGrid() {
 </script>
 <template>
   <Page auto-content-height>
-    <FormModal @success="refreshGrid" />
-    <Grid table-title="部门列表">
+    <FormDrawer @success="refreshGrid" />
+    <Grid :table-title="$t('system.dept.list')">
       <template #toolbar-tools>
         <Button v-if="can('create')" type="primary" @click="onCreate">
           <Plus class="size-5" />

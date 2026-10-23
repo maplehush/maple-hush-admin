@@ -3,23 +3,22 @@ import type { DeptPayload, DeptRecord } from '#/api/system/dept';
 
 import { computed, nextTick, ref } from 'vue';
 
-import { useVbenModal } from '@vben/common-ui';
+import { useVbenDrawer } from '@vben/common-ui';
 
-import { Button, message } from 'antdv-next';
+import { message } from 'antdv-next';
 
 import { useVbenForm } from '#/adapter/form';
 import { createDept, getDeptList, updateDept } from '#/api/system/dept';
 import { $t } from '#/locales';
 
-import { useSchema } from '../data';
-import { buildDeptPayload } from '../form-policy';
+import { buildDeptPayload, useSchema } from '../data';
 
 const emit = defineEmits(['success']);
 const formData = ref<DeptRecord>();
 const original = ref<DeptPayload>();
 const error = ref('');
 const ready = ref(false);
-type DeptModalData = DeptRecord | null | { pid: string };
+type DeptDrawerData = DeptRecord | null | { pid: string };
 const getTitle = computed(() =>
   formData.value?.id
     ? $t('ui.actionTitle.edit', [$t('system.dept.name')])
@@ -34,7 +33,7 @@ async function resetForm() {
   await formApi.reset();
   if (original.value) await formApi.setValues(original.value);
 }
-const [Modal, modalApi] = useVbenModal<DeptModalData>({
+const [Drawer, drawerApi] = useVbenDrawer<DeptDrawerData>({
   async onConfirm() {
     if (!ready.value) return;
     const { valid } = await formApi.validate();
@@ -54,17 +53,17 @@ const [Modal, modalApi] = useVbenModal<DeptModalData>({
       error.value = (cause as Error).message;
       return;
     }
-    modalApi.lock();
+    drawerApi.lock();
     try {
       if (formData.value?.id) await updateDept(formData.value.id, payload);
       else await createDept(payload);
-      message.success('部门已保存');
-      modalApi.close();
+      message.success($t('system.dept.saved'));
+      drawerApi.close();
       emit('success');
     } catch {
-      error.value = '保存失败，表单已保留，请检查提示后重试';
+      error.value = $t('system.dept.errors.save');
     } finally {
-      modalApi.unlock();
+      drawerApi.unlock();
     }
   },
   async onOpenChange(isOpen) {
@@ -72,8 +71,8 @@ const [Modal, modalApi] = useVbenModal<DeptModalData>({
     error.value = '';
     ready.value = false;
     formData.value = undefined;
-    const data = modalApi.getData();
-    modalApi.setState({ loading: true, confirmDisabled: true });
+    const data = drawerApi.getData();
+    drawerApi.setState({ loading: true, showConfirmButton: false });
     try {
       const tree = await getDeptList();
       formData.value = data && 'id' in data ? data : undefined;
@@ -88,26 +87,19 @@ const [Modal, modalApi] = useVbenModal<DeptModalData>({
       };
       await resetForm();
       ready.value = true;
-      modalApi.setState({ confirmDisabled: false });
+      drawerApi.setState({ showConfirmButton: true });
     } catch {
-      error.value = '读取部门树失败，请关闭后重试';
+      error.value = $t('system.dept.errors.treeLoad');
     } finally {
-      modalApi.setState({ loading: false });
+      drawerApi.setState({ loading: false });
     }
   },
 });
-defineExpose({ modalApi });
+defineExpose({ drawerApi });
 </script>
 <template>
-  <Modal :title="getTitle">
+  <Drawer :title="getTitle">
     <Form class="mx-4" />
     <p v-if="error" role="alert" class="mx-4 text-destructive">{{ error }}</p>
-    <template #prepend-footer>
-      <div class="flex-auto">
-        <Button :disabled="!ready" type="primary" danger @click="resetForm">
-          {{ $t('common.reset') }}
-        </Button>
-      </div>
-    </template>
-  </Modal>
+  </Drawer>
 </template>

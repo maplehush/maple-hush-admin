@@ -16,10 +16,12 @@ describe('current user forms', () => {
   });
 
   it('rejects an empty name and overlong introduction', () => {
-    expect(() => profilePayload({ realName: '  ' })).toThrow('姓名');
+    expect(() => profilePayload({ realName: '  ' })).toThrow(
+      'page.profile.errors.nameRequired',
+    );
     expect(() =>
       profilePayload({ realName: '张三', introduction: 'a'.repeat(501) }),
-    ).toThrow('个人简介');
+    ).toThrow('page.profile.errors.introductionLength');
   });
 
   it('submits only the two passwords after confirming the new password', () => {
@@ -36,7 +38,7 @@ describe('current user forms', () => {
         newPassword: 'new-pass-456',
         confirmPassword: 'different',
       }),
-    ).toThrow('两次输入');
+    ).toThrow('page.profile.errors.passwordMismatch');
   });
 
   it('checks the backend password length and byte limits before sending', () => {
@@ -46,6 +48,6 @@ describe('current user forms', () => {
         newPassword: '中'.repeat(25),
         confirmPassword: '中'.repeat(25),
       }),
-    ).toThrow('72 字节');
+    ).toThrow('page.profile.errors.passwordBytes');
   });
 });

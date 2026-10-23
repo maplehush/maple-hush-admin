@@ -181,6 +181,42 @@ class MenuManagementIT {
     }
 
     @Test
+    void systemMenusAndBaselineWorkspaceAreProtectedButCustomDashboardMenusRemainDeletable()
+            throws Exception {
+        long system = menuId("System");
+        long systemUser = menuId("SystemUser");
+        long dashboard = menuId("Dashboard");
+        long workspace = menuId("Workspace");
+
+        for (long id : new long[] {system, systemUser, dashboard, workspace}) {
+            assertEquals(409, request("DELETE", "/api/system/menu/" + id, null, access).statusCode());
+            renew();
+        }
+
+        long customSystemChild =
+                create(body("T07SystemChild", "button", systemUser, null, null, "system:t07:create"));
+        assertEquals(
+                409,
+                request("DELETE", "/api/system/menu/" + customSystemChild, null, access)
+                        .statusCode());
+        renew();
+
+        long customDashboardChild =
+                create(
+                        body(
+                                "T07DashboardChild",
+                                "menu",
+                                dashboard,
+                                "/dashboard/custom",
+                                "/dashboard/workspace/index",
+                                null));
+        assertEquals(
+                200,
+                request("DELETE", "/api/system/menu/" + customDashboardChild, null, access)
+                        .statusCode());
+    }
+
+    @Test
     void duplicatesCrossLevelPathsAndDirectoryMovesAreValidated() throws Exception {
         long root = create(body("T07Catalog", "catalog", null, "/t07", null, null));
         create(body("T07Page", "menu", root, "/t07/user", "/system/user/list", "system:t07:list"));
@@ -312,13 +348,17 @@ class MenuManagementIT {
                 "IFrameView",
                 jdbc.queryForObject(
                         "SELECT component FROM sys_menu WHERE id=?", String.class, frame));
-        var link = body("T07Link", "link", null, "/t07link", null, null);
+        var link = body("T07Link", "link", null, null, null, null);
+        link.remove("path");
         link.put("meta", Map.of("title", "外链", "link", "javascript:alert(1)"));
         assertEquals(400, request("POST", "/api/system/menu", link, access).statusCode());
         link.put(
                 "meta",
                 Map.of("title", "外链", "link", "https://example.com/docs", "openInNewWindow", true));
-        create(link);
+        long linkId = create(link);
+        assertEquals(
+                "/T07Link",
+                jdbc.queryForObject("SELECT path FROM sys_menu WHERE id=?", String.class, linkId));
         var route = find(data(request("GET", "/api/menu/all", null, access)), "T07Link");
         assertEquals("https://example.com/docs", route.get("meta").get("link").asString());
         assertFalse(route.has("component"));
@@ -401,7 +441,7 @@ class MenuManagementIT {
     }
 
     @Test
-    void committedWritesInvalidateOtherUsersAndConcurrentOldRequestsCannotBothCommit()
+    void committedWritesKeepSessionsValidAndConcurrentOldRequestsCannotBothCommit()
             throws Exception {
         String regular = regularUser();
         String stale = access;
@@ -424,9 +464,9 @@ class MenuManagementIT {
                 1,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM sys_menu WHERE name='T07Concurrent'", Integer.class));
-        assertEquals(401, request("GET", "/api/menu/all", null, regular).statusCode());
-        assertEquals(401, request("GET", "/api/menu/all", null, stale).statusCode());
-        assertNull(redis.opsForValue().get(keys.key("user", Long.toString(adminId))));
+        assertEquals(200, request("GET", "/api/menu/all", null, regular).statusCode());
+        assertEquals(200, request("GET", "/api/menu/all", null, stale).statusCode());
+        assertNotNull(redis.opsForValue().get(keys.key("user", Long.toString(adminId))));
     }
 
     private String regularUser() {
@@ -465,6 +505,10 @@ class MenuManagementIT {
         long id = Long.parseLong(data(response).get("id").asString());
         renew();
         return id;
+    }
+
+    private long menuId(String name) {
+        return jdbc.queryForObject("SELECT id FROM sys_menu WHERE name=?", Long.class, name);
     }
 
     private Map<String, Object> body(

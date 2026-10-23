@@ -1,15 +1,89 @@
 {
+  "root": "根路由",
   "auth": {
+    "title": "登录认证",
     "login": "登录",
     "register": "注册",
     "codeLogin": "验证码登录",
     "qrcodeLogin": "二维码登录",
     "forgetPassword": "忘记密码",
-    "profile": "个人中心"
+    "profile": "个人中心",
+    "username": "用户名",
+    "usernamePlaceholder": "请输入用户名",
+    "password": "密码",
+    "passwordPlaceholder": "请输入密码",
+    "captcha": "验证码",
+    "captchaPlaceholder": "请输入验证码",
+    "refreshCaptcha": "刷新验证码",
+    "captchaLoading": "加载中",
+    "captchaRetry": "点击重试",
+    "getCaptchaFirst": "请先获取验证码",
+    "initialPassword": "首次登录修改密码",
+    "initialPasswordDescription": "请设置新密码，完成后使用新密码重新登录。",
+    "newPasswordPlaceholder": "请输入新密码",
+    "confirmPasswordPlaceholder": "请再次输入新密码",
+    "confirmPassword": "确认新密码",
+    "confirmChange": "确认修改",
+    "backToLogin": "返回登录",
+    "passwordLength": "新密码需为 8～128 个字符，且 UTF-8 不超过 72 字节",
+    "passwordMismatch": "两次输入的密码不一致",
+    "errors": {
+      "captchaLoad": "验证码加载失败，请稍后重试",
+      "login": "登录失败，请检查账号、密码和验证码",
+      "initialPassword": "密码修改失败，请重试",
+      "accessLoad": "用户或权限加载失败，请稍后刷新重试",
+      "sessionChanged": "登录状态已变化，请重新进入页面"
+    }
   },
   "dashboard": {
     "title": "概览",
     "analytics": "分析页",
-    "workspace": "工作台"
+    "workspace": "工作台",
+    "welcome": "欢迎，{name}",
+    "description": "欢迎使用 Maple Hush Admin，开始处理你的工作。",
+    "quickNavigation": "快捷导航"
+  },
+  "profile": {
+    "title": "个人中心",
+    "basic": "基本资料",
+    "changePassword": "修改密码",
+    "username": "登录账号",
+    "roles": "角色",
+    "name": "姓名",
+    "oldPassword": "旧密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "newPasswordMinimum": "新密码至少 8 个字符",
+    "newPasswordMaximum": "新密码最多 128 个字符",
+    "introduction": "个人简介",
+    "avatar": "头像",
+    "avatarName": "当前头像",
+    "avatarHelp": "支持 JPG、PNG、WebP，最大 2 MB；选择后立即更新",
+    "uploadAvatar": "上传头像",
+    "avatarFilesHelp": "仅支持不超过 2 MB 的 JPG、PNG、WebP 图片",
+    "save": "保存",
+    "errors": {
+      "nameRequired": "请输入姓名",
+      "nameMax": "姓名最多 100 个字符",
+      "introductionLength": "个人简介最多 500 个字符",
+      "oldPasswordRequired": "请输入旧密码",
+      "newPasswordRequired": "请输入新密码",
+      "confirmPasswordRequired": "请输入确认新密码",
+      "passwordLength": "新密码需为 8～128 个字符",
+      "passwordBytes": "新密码的 UTF-8 编码不能超过 72 字节",
+      "passwordMismatch": "两次输入的新密码不一致",
+      "profileLoad": "个人资料加载失败，请刷新页面重试",
+      "profileSave": "个人资料保存失败，请重试",
+      "avatarUpload": "头像上传失败，请重新选择图片",
+      "avatarUnavailable": "暂时无法上传，请稍后重试",
+      "avatarChanged": "头像已更新",
+      "profileSaved": "个人资料已保存",
+      "passwordChange": "密码修改失败，请核对旧密码后重试",
+      "passwordChanged": "密码已修改，请使用新密码登录"
+    }
+  },
+  "fallback": {
+    "forbidden": "无权访问",
+    "notFound": "页面不存在"
   }
 }

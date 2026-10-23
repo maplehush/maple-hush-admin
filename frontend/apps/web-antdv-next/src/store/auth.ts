@@ -18,6 +18,7 @@ import {
   logoutApi,
 } from '#/api';
 import { session, subscribeSession } from '#/auth/session';
+import { $t } from '#/locales';
 import { resetRoutes } from '#/router';
 import { safeRedirect } from '#/utils/redirect';
 export const useAuthStore = defineStore('auth', () => {
@@ -66,7 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
     const epoch = session.state.epoch;
     const info = await getUserInfoApi();
     if (epoch !== session.state.epoch) {
-      throw new Error('登录状态已变化');
+      throw new Error($t('errors.sessionChanged'));
     }
     userStore.setUserInfo(info);
     return info;
@@ -78,7 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
       getAccessCodesApi(),
     ]);
     if (epoch !== session.state.epoch) {
-      throw new Error('登录状态已变化');
+      throw new Error($t('errors.sessionChanged'));
     }
     accessStore.setAccessCodes(codes);
     return info;
@@ -115,14 +116,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
     await changeInitialPasswordApi(passwordChangeToken.value, newPassword);
     passwordChangeToken.value = null;
-    message.success('密码修改成功，请使用新密码登录');
+    message.success($t('errors.passwordUpdated'));
     await router.replace('/auth/login');
   }
   async function logout() {
     try {
       await logoutApi();
     } catch {
-      message.warning('本地已退出，服务端退出未确认，请稍后重试');
+      message.warning($t('errors.logoutUnconfirmed'));
     } finally {
       clearIdentity();
       accessStore.setAccessToken(session.state.token);

@@ -103,8 +103,12 @@ public class SysMenuInput {
                 throw SysMenuRules.invalid("按钮须有操作码，不能设置路由或扩展元数据");
             }
         } else {
-            SysMenuRules.path(dto.path());
-            menu.setPath(dto.path());
+            if ("link".equals(dto.type()) && blank(dto.path()) == null) {
+                menu.setPath(null);
+            } else {
+                SysMenuRules.path(dto.path());
+                menu.setPath(dto.path());
+            }
             switch (dto.type()) {
                 case "catalog" -> {
                     if (code != null

@@ -3,6 +3,7 @@ package com.maplehush.admin.system.user;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -10,8 +11,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.maplehush.admin.common.storage.config.OssProperties;
+import com.maplehush.admin.common.exception.BusinessException;
+import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.common.storage.service.IOssStorageService;
 import com.maplehush.admin.system.user.service.impl.AvatarStorageServiceImpl;
+import com.maplehush.admin.system.file.support.UploadRateLimiter;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,13 +28,23 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 class AvatarStorageTest {
     private final IOssStorageService storage = mock(IOssStorageService.class);
     private final OssProperties properties = new OssProperties();
+    private final UploadRateLimiter limits = mock(UploadRateLimiter.class);
     private final AvatarStorageServiceImpl avatars =
-            new AvatarStorageServiceImpl(storage, properties);
+            new AvatarStorageServiceImpl(storage, properties, limits);
+
+    @Test
+    void exhaustedQuotaPreventsObjectCreation() {
+        doThrow(new BusinessException(ErrorCode.RATE_LIMITED, "上传次数已达限制"))
+                .when(limits).reserve(7);
+        assertThrows(BusinessException.class, () -> avatars.upload(7, new byte[] {1}));
+        verify(storage, never()).put(any(), any(), any());
+    }
 
     @Test
     void generatedKeyIsUnpredictableAndBoundToCurrentUser() {
         String first = avatars.upload(7, new byte[] {1});
         String second = avatars.upload(7, new byte[] {1});
+        verify(limits, org.mockito.Mockito.times(2)).reserve(7);
         assertFalse(first.equals(second));
         assertTrue(
                 first.matches(

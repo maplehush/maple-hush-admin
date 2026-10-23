@@ -16,6 +16,20 @@ import java.util.Set;
  */
 @Mapper
 public interface PermissionMapper {
+    /**
+     * 一次读取有效角色及其直接授权；保留没有菜单的角色，避免改变当前用户角色信息。
+     */
+    @Select("SELECT r.role_code,rm.menu_id FROM sys_user_role ur "
+            + "JOIN sys_role r ON r.id=ur.role_id AND r.status=1 "
+            + "LEFT JOIN sys_role_menu rm ON rm.role_id=r.id "
+            + "WHERE ur.user_id=#{id} ORDER BY r.id,rm.menu_id")
+    List<RoleGrant> listRoleGrants(@Param("id") long id);
+
+    /**
+     * 有效角色与菜单关联；无授权角色的 menuId 为空。
+     */
+    record RoleGrant(String roleCode, Long menuId) {}
+
     @Select(
             "SELECT id,username,real_name,avatar_url,introduction,status,must_change_password,auth_version FROM sys_user WHERE id=#{id}")
     SysUser getUser(@Param("id") long id);
@@ -32,10 +46,6 @@ public interface PermissionMapper {
     @Select(
             "SELECT DISTINCT ur.user_id FROM sys_user_role ur WHERE ur.role_id=#{id} ORDER BY ur.user_id")
     List<Long> listRoleUsers(@Param("id") long id);
-
-    // 菜单祖先的状态/路径变更可能影响后代，因此菜单变更统一使所有已分配角色用户失效。
-    @Select("SELECT DISTINCT user_id FROM sys_user_role ORDER BY user_id")
-    List<Long> listAssignedUsers();
 
     @Update(
             "UPDATE sys_user SET auth_version=auth_version+1,update_time=CURRENT_TIMESTAMP WHERE id=#{id}")

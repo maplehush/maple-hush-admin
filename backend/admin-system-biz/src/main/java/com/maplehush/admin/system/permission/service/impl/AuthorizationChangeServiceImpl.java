@@ -36,12 +36,6 @@ public class AuthorizationChangeServiceImpl implements IAuthorizationChangeServi
 
     @Transactional(propagation = Propagation.MANDATORY)
     @Override
-    public void menusChanged() {
-        increment(mapper.listAssignedUsers());
-    }
-
-    @Transactional(propagation = Propagation.MANDATORY)
-    @Override
     public void usersChanged(Collection<Long> userIds) {
         increment(userIds);
     }

@@ -68,9 +68,15 @@ public class SysRoleServiceImpl implements ISysRoleService {
                         .orderByAsc(SysRole::getId);
         var page = mapper.selectPage(new Page<SysRole>(query.page(), query.pageSize()), wrapper);
         var grants = grants(page.getRecords().stream().map(SysRole::getId).toList());
+        List<SysMenu> menus = permissionMapper.listMenus();
         return new PageResult<>(
                 page.getRecords().stream()
-                        .map(role -> vo(role, grants.getOrDefault(role.getId(), Set.of())))
+                        .map(
+                                role ->
+                                        vo(
+                                                role,
+                                                grants.getOrDefault(role.getId(), Set.of()),
+                                                menus))
                         .toList(),
                 page.getTotal());
     }
@@ -78,7 +84,10 @@ public class SysRoleServiceImpl implements ISysRoleService {
     @Transactional(readOnly = true)
     @Override
     public SysRoleVO getRole(Long id) {
-        return vo(getNode(id), grants(List.of(id)).getOrDefault(id, Set.of()));
+        return vo(
+                getNode(id),
+                grants(List.of(id)).getOrDefault(id, Set.of()),
+                permissionMapper.listMenus());
     }
 
     @Transactional
@@ -92,11 +101,11 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if ("super_admin".equals(dto.roleCode())) {
             throw forbidden("不能创建内置超级管理员角色");
         }
-        Set<Long> selected = selection(dto.permissions());
+        List<SysMenu> menus = permissionMapper.listMenus();
+        Set<Long> selected = withoutDefaultWorkspace(selection(dto.permissions()), menus);
         if (!selected.isEmpty()) {
             requireGrant();
         }
-        List<SysMenu> menus = permissionMapper.listMenus();
         Set<Long> normalized = SysRoleGrantRules.normalize(selected, Set.of(), menus);
         if (!normalized.isEmpty()) {
             checkGrantScope(normalized, menus);
@@ -125,12 +134,16 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (dto.roleCode() != null && !dto.roleCode().equals(previous.getRoleCode())) {
             throw new BusinessException(ErrorCode.CONFLICT, "角色编码创建后不可修改");
         }
-        Set<Long> before = grants(List.of(id)).getOrDefault(id, Set.of());
+        List<SysMenu> menus = permissionMapper.listMenus();
+        Set<Long> before =
+                withoutDefaultWorkspace(grants(List.of(id)).getOrDefault(id, Set.of()), menus);
         Set<Long> after =
                 dto.permissions() == null
                         ? before
                         : SysRoleGrantRules.normalize(
-                                selection(dto.permissions()), before, permissionMapper.listMenus());
+                                withoutDefaultWorkspace(selection(dto.permissions()), menus),
+                                before,
+                                menus);
         SysRole candidate = values(dto);
         candidate.setId(id);
         if (dto.status() == null) {
@@ -140,7 +153,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
         boolean enabling = previous.getStatus() == 0 && candidate.getStatus() == 1;
         if (changed || enabling) {
             requireGrant();
-            checkGrantScope(after, permissionMapper.listMenus());
+            checkGrantScope(after, menus);
         }
         try {
             if (mapper.updateRole(candidate) != 1) {
@@ -155,6 +168,28 @@ public class SysRoleServiceImpl implements ISysRoleService {
         if (changed || !Objects.equals(previous.getStatus(), candidate.getStatus())) {
             changes.roleChanged(id);
         }
+    }
+
+    @Transactional
+    @OperationLog(value = "system:role:update", targetType = "role", targetIdArgument = 0)
+    @Override
+    public void updateRoleStatus(Long id, Integer status) {
+        lockAndValidateOperator();
+        SysRole role = getNode(id);
+        protectBuiltin(role);
+        if (Objects.equals(role.getStatus(), status)) {
+            return;
+        }
+        if (Integer.valueOf(1).equals(status)) {
+            requireGrant();
+            List<SysMenu> menus = permissionMapper.listMenus();
+            Set<Long> current = grants(List.of(id)).getOrDefault(id, Set.of());
+            checkGrantScope(withoutDefaultWorkspace(current, menus), menus);
+        }
+        if (mapper.updateRoleStatus(id, status) != 1) {
+            throw notFound();
+        }
+        changes.roleChanged(id);
     }
 
     @Transactional
@@ -236,6 +271,17 @@ public class SysRoleServiceImpl implements ISysRoleService {
                 : ids.stream().map(SysRoleGrantRules::id).collect(Collectors.toSet());
     }
 
+    /** Removes universal workspace nodes from role grants and authorization scope. */
+    private Set<Long> withoutDefaultWorkspace(Set<Long> requested, List<SysMenu> menus) {
+        Set<Long> result = new HashSet<>(requested);
+        for (SysMenu menu : menus) {
+            if ("Dashboard".equals(menu.getName()) || "Workspace".equals(menu.getName())) {
+                result.remove(menu.getId());
+            }
+        }
+        return result;
+    }
+
     private Map<Long, Set<Long>> grants(List<Long> roles) {
         Map<Long, Set<Long>> result = new HashMap<>();
         if (!roles.isEmpty()) {
@@ -276,7 +322,8 @@ public class SysRoleServiceImpl implements ISysRoleService {
         }
     }
 
-    private SysRoleVO vo(SysRole role, Set<Long> ids) {
+    private SysRoleVO vo(SysRole role, Set<Long> ids, List<SysMenu> menus) {
+        Set<Long> rolePermissions = withoutDefaultWorkspace(ids, menus);
         return new SysRoleVO(
                 role.getId().toString(),
                 role.getRoleCode(),
@@ -284,7 +331,7 @@ public class SysRoleServiceImpl implements ISysRoleService {
                 role.getStatus(),
                 role.getBuiltIn(),
                 role.getRemark(),
-                ids.stream().sorted().map(String::valueOf).toList(),
+                rolePermissions.stream().sorted().map(String::valueOf).toList(),
                 role.getCreateTime(),
                 role.getUpdateTime());
     }

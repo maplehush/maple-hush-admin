@@ -9,6 +9,7 @@ import { message } from 'antdv-next';
 
 import { z } from '#/adapter/form';
 import { changePasswordApi } from '#/api';
+import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 
 import { passwordPayload } from './model';
@@ -22,26 +23,34 @@ const formSchema = computed((): VbenFormSchema[] => [
     component: 'InputPassword',
     componentProps: { autocomplete: 'current-password', maxlength: 128 },
     fieldName: 'oldPassword',
-    label: '旧密码',
-    rules: z.string().min(1, '请输入旧密码'),
+    label: $t('page.profile.oldPassword'),
+    rules: z
+      .string({ error: $t('page.profile.errors.oldPasswordRequired') })
+      .min(1, $t('page.profile.errors.oldPasswordRequired')),
   },
   {
     component: 'InputPassword',
     componentProps: { autocomplete: 'new-password', maxlength: 128 },
     fieldName: 'newPassword',
-    label: '新密码',
-    rules: z.string().min(8, '新密码至少 8 个字符').max(128),
+    label: $t('page.profile.newPassword'),
+    rules: z
+      .string({ error: $t('page.profile.errors.newPasswordRequired') })
+      .min(8, $t('page.profile.newPasswordMinimum'))
+      .max(128, $t('page.profile.newPasswordMaximum')),
   },
   {
     component: 'InputPassword',
     componentProps: { autocomplete: 'new-password', maxlength: 128 },
     fieldName: 'confirmPassword',
-    label: '确认新密码',
+    label: $t('page.profile.confirmPassword'),
     dependencies: {
       rules(values) {
-        return z.string().refine((value) => value === values.newPassword, {
-          message: '两次输入的新密码不一致',
-        });
+        return z
+          .string({ error: $t('page.profile.errors.confirmPasswordRequired') })
+          .min(1, $t('page.profile.errors.confirmPasswordRequired'))
+          .refine((value) => value === values.newPassword, {
+            message: $t('page.profile.errors.passwordMismatch'),
+          });
       },
       triggerFields: ['newPassword'],
     },
@@ -56,7 +65,7 @@ async function handleSubmit(values: Record<string, unknown>) {
   try {
     payload = passwordPayload(values);
   } catch (cause) {
-    error.value = (cause as Error).message;
+    error.value = $t((cause as Error).message);
     return;
   }
   saving.value = true;
@@ -64,11 +73,11 @@ async function handleSubmit(values: Record<string, unknown>) {
   try {
     await changePasswordApi(payload);
   } catch {
-    error.value = '密码修改失败，请核对旧密码后重试';
+    error.value = $t('page.profile.errors.passwordChange');
     saving.value = false;
     return;
   }
-  message.success('密码已修改，请使用新密码登录');
+  message.success($t('page.profile.errors.passwordChanged'));
   try {
     await auth.completePasswordChange();
   } finally {

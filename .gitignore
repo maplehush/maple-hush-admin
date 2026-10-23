@@ -7,19 +7,28 @@
 !frontend/apps/web-antdv-next/.env.development
 !frontend/apps/web-antdv-next/.env.production
 !frontend/apps/web-antdv-next/.env.analyze
-!frontend/playground/.env
-!frontend/playground/.env.development
-!frontend/playground/.env.production
-!frontend/playground/.env.analyze
 *.pem
 *.key
 secrets/
 certs/
+backups/
+
+# Local agent task state
+.superpowers/
 
 # Build and editor output
 **/node_modules/
 **/dist/
 **/target/
 .idea/
-.vscode/
+# Share the two project-level VS Code configurations; ignore other editor files.
+**/.vscode/*
+!/.vscode/settings.json
+!/.vscode/extensions.json
+!/.vscode/launch.json
+!/.vscode/global.code-snippets
+!/frontend/.vscode/settings.json
+!/frontend/.vscode/extensions.json
+!/frontend/.vscode/launch.json
+!/frontend/.vscode/global.code-snippets
 

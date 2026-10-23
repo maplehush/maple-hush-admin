@@ -8,6 +8,7 @@ import com.maplehush.admin.common.storage.service.IOssStorageService;
 import com.maplehush.admin.config.redis.RedisKeyBuilder;
 import com.maplehush.admin.system.file.service.IFileUploadService;
 import com.maplehush.admin.system.file.service.IImageValidationService;
+import com.maplehush.admin.system.file.support.UploadRateLimiter;
 import com.maplehush.admin.system.file.vo.FileUploadVO;
 import com.maplehush.admin.system.permission.service.IPermissionService;
 
@@ -42,6 +43,7 @@ public class FileUploadServiceImpl implements IFileUploadService {
     private final RedisTemplate<String, String> redis;
     private final RedisKeyBuilder keys;
     private final JsonMapper json;
+    private final UploadRateLimiter limits;
 
     public FileUploadServiceImpl(
             IImageValidationService images,
@@ -50,7 +52,8 @@ public class FileUploadServiceImpl implements IFileUploadService {
             IPermissionService permissions,
             @Qualifier("stringValueRedisTemplate") RedisTemplate<String, String> redis,
             RedisKeyBuilder keys,
-            JsonMapper json) {
+            JsonMapper json,
+            UploadRateLimiter limits) {
         this.images = images;
         this.storage = storage;
         this.properties = properties;
@@ -58,12 +61,14 @@ public class FileUploadServiceImpl implements IFileUploadService {
         this.redis = redis;
         this.keys = keys;
         this.json = json;
+        this.limits = limits;
     }
 
     @Override
     @OperationLog(value = "file:upload", targetType = "public_image")
     public FileUploadVO upload(MultipartFile file) {
         long userId = permissions.current().user().getId();
+        limits.reserve(userId);
         byte[] png = images.normalize(file);
         String key = properties.getObjectPrefix() + "files/" + userId + "/" + random() + ".png";
         String url = properties.getPublicDomain() + "/" + key;

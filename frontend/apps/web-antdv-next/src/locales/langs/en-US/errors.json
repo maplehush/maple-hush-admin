@@ -1,0 +1,20 @@
+{
+  "invalidRequest": "Invalid request. Please check and try again.",
+  "invalidArgument": "Invalid parameters. Please check the form.",
+  "captchaInvalid": "The captcha is incorrect or expired. Please obtain a new one.",
+  "unauthenticated": "Your session has expired. Please sign in again.",
+  "invalidCredentials": "Incorrect account or password.",
+  "forbidden": "You do not have permission to perform this action.",
+  "csrfInvalid": "Request verification failed. Please try again.",
+  "notFound": "The requested resource does not exist.",
+  "conflict": "Duplicate data or conflicting state. Please refresh and try again.",
+  "rateLimited": "Too many requests or the usage limit has been reached. Please try again later.",
+  "unavailable": "The service is temporarily unavailable. Please try again later.",
+  "internal": "The server cannot process this request right now.",
+  "requestFailed": "Request failed. Please try again later.",
+  "invalidLoginResponse": "Invalid sign-in response. Please sign in again.",
+  "invalidRefreshResponse": "Invalid refresh response. Please sign in again.",
+  "sessionChanged": "Your session has changed. Please try again.",
+  "passwordUpdated": "Password updated. Please sign in with your new password.",
+  "logoutUnconfirmed": "Signed out locally, but server sign-out was not confirmed. Please try again later."
+}

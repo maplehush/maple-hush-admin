@@ -11,6 +11,7 @@ import type {
   CascaderProps,
   CheckboxGroupProps,
   CheckboxProps,
+  ColorPickerProps,
   DatePickerProps,
   DividerProps,
   InputNumberProps,
@@ -97,6 +98,9 @@ const Checkbox = defineAsyncComponent(
 );
 const CheckboxGroup = defineAsyncComponent(() =>
   import('antdv-next/dist/checkbox/index').then((res) => res.CheckboxGroup),
+);
+const ColorPicker = defineAsyncComponent(
+  () => import('antdv-next/dist/color-picker/index'),
 );
 const DatePicker = defineAsyncComponent(
   () => import('antdv-next/dist/date-picker/index'),
@@ -628,6 +632,7 @@ export type ComponentType =
   | 'Checkbox'
   | 'CheckboxGroup'
   | 'CollapsibleParams'
+  | 'ColorPicker'
   | 'DatePicker'
   | 'DefaultButton'
   | 'Divider'
@@ -663,6 +668,7 @@ export interface ComponentPropsMap {
   Checkbox: CheckboxProps;
   CheckboxGroup: CheckboxGroupProps;
   CollapsibleParams: CollapsibleParamsProps;
+  ColorPicker: ColorPickerProps;
   DatePicker: DatePickerProps;
   DefaultButton: ButtonProps;
   Divider: DividerProps;
@@ -717,6 +723,7 @@ async function initComponentAdapter() {
     Cascader,
     Checkbox,
     CheckboxGroup,
+    ColorPicker,
     DatePicker,
     // 自定义默认按钮
     DefaultButton: createThemeAwareButton(Button, 'default'),

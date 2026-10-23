@@ -4,9 +4,11 @@ import type {
   VxeTableGridOptions,
 } from '#/adapter/vxe-table';
 
+import { ref, watch } from 'vue';
+
 import { Page, useVbenDrawer } from '@vben/common-ui';
 import { IconifyIcon, Plus } from '@vben/icons';
-import { $t } from '@vben/locales';
+import { preferences } from '@vben/preferences';
 import { useAccessStore } from '@vben/stores';
 
 import { MenuBadge } from '@vben-core/menu-ui';
@@ -15,15 +17,19 @@ import { Alert, Button, message } from 'antdv-next';
 
 import { useVbenVxeGrid } from '#/adapter/vxe-table';
 import { deleteMenu, getMenuList, SystemMenuApi } from '#/api/system/menu';
-import { useAuthStore } from '#/store';
+import { $t } from '#/locales';
+import { refreshAccessRoutes } from '#/router/refresh-access';
 
 import { useColumns } from './data';
+import { collectUndeletableMenuIds } from './data';
 import Form from './modules/form.vue';
 
 const access = useAccessStore();
-const auth = useAuthStore();
 const can = (action: string) =>
   access.accessCodes.includes(`system:menu:${action}`);
+const undeletableMenuIds = ref<Set<string>>(new Set());
+const isDeleteDisabled = (row: SystemMenuApi.SystemMenu) =>
+  undeletableMenuIds.value.has(row.id);
 
 const [FormDrawer, formDrawerApi] = useVbenDrawer({
   connectedComponent: Form,
@@ -32,7 +38,7 @@ const [FormDrawer, formDrawerApi] = useVbenDrawer({
 
 const [Grid, gridApi] = useVbenVxeGrid({
   gridOptions: {
-    columns: useColumns(onActionClick),
+    columns: useColumns(onActionClick, isDeleteDisabled),
     height: 'auto',
     keepSource: true,
     pagerConfig: {
@@ -41,7 +47,13 @@ const [Grid, gridApi] = useVbenVxeGrid({
     proxyConfig: {
       ajax: {
         query: async (_params) => {
-          return can('list') ? await getMenuList() : [];
+          if (!can('list')) return [];
+          const menus = await getMenuList();
+          undeletableMenuIds.value = collectUndeletableMenuIds(menus);
+          gridApi.setGridOptions({
+            columns: useColumns(onActionClick, isDeleteDisabled),
+          });
+          return menus;
         },
       },
     },
@@ -61,6 +73,14 @@ const [Grid, gridApi] = useVbenVxeGrid({
     },
   } as VxeTableGridOptions,
 });
+watch(
+  () => preferences.app.locale,
+  () => {
+    gridApi.setGridOptions({
+      columns: useColumns(onActionClick, isDeleteDisabled),
+    });
+  },
+);
 
 function onActionClick({
   code,
@@ -72,6 +92,7 @@ function onActionClick({
       break;
     }
     case 'delete': {
+      if (isDeleteDisabled(row)) break;
       onDelete(row);
       break;
     }
@@ -85,30 +106,35 @@ function onActionClick({
   }
 }
 
-function onRefresh() {
-  gridApi.query();
+async function onRefresh() {
+  await gridApi.query();
 }
 function onEdit(row: SystemMenuApi.SystemMenu) {
   if (can('update')) formDrawerApi.setData(row).open();
 }
 function onCreate() {
-  if (can('create')) formDrawerApi.setData({}).open();
+  if (can('create')) formDrawerApi.setData({ type: 'catalog' }).open();
 }
 function onAppend(row: SystemMenuApi.SystemMenu) {
   if (can('create') && row.type !== 'button')
     formDrawerApi
       .setData({
-        pid: row.id,
+        pid: String(row.id),
         type: row.type === 'catalog' ? 'menu' : 'button',
       })
       .open();
 }
 
 async function onDelete(row: SystemMenuApi.SystemMenu) {
-  if (!can('delete')) return;
+  if (!can('delete') || isDeleteDisabled(row)) return;
   await deleteMenu(row.id);
-  message.success('菜单已删除，登录权限已失效，请重新登录');
-  await auth.logout();
+  await onRefresh();
+  try {
+    await refreshAccessRoutes();
+    message.success($t('system.menu.deleted'));
+  } catch {
+    message.warning($t('system.menu.refreshFailed'));
+  }
 }
 </script>
 <template>
@@ -117,7 +143,7 @@ async function onDelete(row: SystemMenuApi.SystemMenu) {
     <Alert
       v-if="!can('list')"
       type="warning"
-      message="缺少菜单管理树查询权限"
+      :message="$t('system.menu.missingListPermission')"
     />
     <Grid v-else>
       <template #toolbar-tools>

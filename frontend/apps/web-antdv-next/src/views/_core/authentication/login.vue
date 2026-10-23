@@ -8,6 +8,7 @@ import { AuthenticationLogin, z } from '@vben/common-ui';
 import { message } from 'antdv-next';
 
 import { getCaptchaApi } from '#/api';
+import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 
 import ImageCaptcha from './image-captcha.vue';
@@ -29,8 +30,8 @@ async function refreshCaptcha() {
     const data = await getCaptchaApi();
     captchaId.value = data.captchaId;
     image.value = data.imageBase64;
-  } catch (error) {
-    message.error((error as Error).message);
+  } catch {
+    message.error($t('page.auth.errors.captchaLoad'));
   } finally {
     busy.value = false;
   }
@@ -39,42 +40,51 @@ const formSchema = computed((): VbenFormSchema[] => [
   {
     component: 'VbenInput',
     fieldName: 'username',
-    label: '用户名',
-    componentProps: { placeholder: '请输入用户名', autocomplete: 'username' },
-    rules: z.string().min(1, '请输入用户名'),
+    label: $t('page.auth.username'),
+    componentProps: {
+      placeholder: $t('page.auth.usernamePlaceholder'),
+      autocomplete: 'username',
+    },
+    rules: z
+      .string({ error: $t('page.auth.usernamePlaceholder') })
+      .min(1, $t('page.auth.usernamePlaceholder')),
   },
   {
     component: 'VbenInputPassword',
     fieldName: 'password',
-    label: '密码',
+    label: $t('page.auth.password'),
     componentProps: {
-      placeholder: '请输入密码',
+      placeholder: $t('page.auth.passwordPlaceholder'),
       autocomplete: 'current-password',
     },
-    rules: z.string().min(1, '请输入密码'),
+    rules: z
+      .string({ error: $t('page.auth.passwordPlaceholder') })
+      .min(1, $t('page.auth.passwordPlaceholder')),
   },
   {
     component: markRaw(ImageCaptcha),
     fieldName: 'captchaCode',
-    label: '验证码',
+    label: $t('page.auth.captcha'),
     componentProps: {
       image: image.value,
       busy: busy.value,
       onRefresh: refreshCaptcha,
     },
-    rules: z.string().min(1, '请输入验证码'),
+    rules: z
+      .string({ error: $t('page.auth.captchaPlaceholder') })
+      .min(1, $t('page.auth.captchaPlaceholder')),
   },
 ]);
 async function submit(values: Record<string, unknown>) {
   if (!captchaId.value) {
-    message.warning('请先获取验证码');
+    message.warning($t('page.auth.getCaptchaFirst'));
     await refreshCaptcha();
     return;
   }
   try {
     await authStore.authLogin({ ...values, captchaId: captchaId.value });
-  } catch (error) {
-    message.error((error as Error).message);
+  } catch {
+    message.error($t('page.auth.errors.login'));
     await refreshCaptcha();
   }
 }

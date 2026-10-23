@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonAnySetter;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -16,7 +17,7 @@ import java.util.List;
  * @param username 登录账号，至多 64 字符，创建后不可修改
  * @param name 管理页姓名，映射 real_name
  * @param deptId 所属部门 ID；空值或 0 表示未分配
- * @param roleIds 拟分配的普通角色 ID；空值或空列表表示无角色
+ * @param roleIds 必须分配的普通角色 ID，至少一个
  * @param status 1 启用、0 停用；缺省为 1
  * @param avatarUploadId 可选的当前操作人上传标识；省略/null 保留原头像
  * @param remark 管理员备注，与本人简介分开保存
@@ -25,7 +26,7 @@ public record SysUserCreateDTO(
         @NotBlank @Size(max = 64) String username,
         @NotBlank @Size(max = 100) String name,
         @Size(max = 19) String deptId,
-        @Size(max = 100) List<@NotBlank String> roleIds,
+        @NotEmpty @Size(max = 100) List<@NotBlank String> roleIds,
         @Min(0) @Max(1) Integer status,
         @Size(max = 500) String remark,
         @Pattern(regexp = "[a-f0-9]{32}") String avatarUploadId) {

@@ -48,7 +48,7 @@ class SystemMigrationIT {
     @Test
     void migrationAndSeedAreComplete() {
         assertEquals(
-                4,
+                10,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1",
                         Integer.class));
@@ -68,12 +68,12 @@ class SystemMigrationIT {
                         "SELECT COUNT(*) FROM sys_role WHERE role_code='super_admin' AND is_builtin=1",
                         Integer.class));
         assertEquals(
-                2,
+                3,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM sys_menu WHERE type='catalog' AND auth_code IS NULL",
                         Integer.class));
         assertEquals(
-                7,
+                8,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM sys_menu WHERE type='menu'", Integer.class));
         assertEquals(
@@ -85,7 +85,7 @@ class SystemMigrationIT {
                 0,
                 jdbc.queryForObject(
                         "SELECT COUNT(*) FROM sys_menu m LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id "
-                                + "WHERE rm.menu_id IS NULL",
+                                + "WHERE m.name NOT IN ('Dashboard','Workspace') AND rm.menu_id IS NULL",
                         Integer.class));
         assertEquals(
                 0,
@@ -95,8 +95,29 @@ class SystemMigrationIT {
         assertEquals(
                 0,
                 jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM sys_menu WHERE type='menu' AND "
-                                + "(component NOT LIKE '/system/%/list' OR auth_code IS NULL)",
+                        "SELECT COUNT(*) FROM sys_menu WHERE type='menu' "
+                                + "AND name NOT IN ('Workspace','SystemLoginLog','SystemOperationLog') "
+                                + "AND (component NOT LIKE '/system/%/list' OR auth_code IS NULL)",
+                        Integer.class));
+        assertEquals(
+                2,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_menu WHERE "
+                                + "(auth_code='system:login-log:list' AND component='/log/login/list') "
+                                + "OR (auth_code='system:operation-log:list' AND component='/log/operation/list')",
+                        Integer.class));
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_menu WHERE name='Workspace' AND type='menu' "
+                                + "AND path='workspace' AND component='/dashboard/workspace/index' "
+                                + "AND auth_code IS NULL AND status=1",
+                        Integer.class));
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_role_menu rm JOIN sys_menu m ON m.id=rm.menu_id "
+                                + "WHERE m.name IN ('Dashboard','Workspace')",
                         Integer.class));
     }
 

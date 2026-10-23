@@ -3,6 +3,7 @@ import { ref } from 'vue';
 
 import { Button, InputPassword, message } from 'antdv-next';
 
+import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 const auth = useAuthStore();
 const password = ref('');
@@ -14,18 +15,18 @@ async function submit() {
     password.value.length > 128 ||
     new TextEncoder().encode(password.value).length > 72
   ) {
-    message.warning('新密码需为 8～128 个字符，且 UTF-8 不超过 72 字节');
+    message.warning($t('page.auth.passwordLength'));
     return;
   }
   if (password.value !== confirmation.value) {
-    message.warning('两次输入的密码不一致');
+    message.warning($t('page.auth.passwordMismatch'));
     return;
   }
   busy.value = true;
   try {
     await auth.changeInitialPassword(password.value);
-  } catch (error) {
-    message.error((error as Error).message);
+  } catch {
+    message.error($t('page.auth.errors.initialPassword'));
   } finally {
     busy.value = false;
   }
@@ -33,25 +34,29 @@ async function submit() {
 </script>
 <template>
   <form class="flex flex-col gap-5" @submit.prevent="submit">
-    <h1 class="text-2xl font-semibold">首次登录修改密码</h1>
+    <h1 class="text-2xl font-semibold">
+      {{ $t('page.auth.initialPassword') }}
+    </h1>
     <p class="text-muted-foreground">
-      请设置新密码，完成后使用新密码重新登录。
+      {{ $t('page.auth.initialPasswordDescription') }}
     </p>
     <InputPassword
       v-model:value="password"
-      placeholder="请输入新密码"
-      aria-label="新密码"
+      :placeholder="$t('page.auth.newPasswordPlaceholder')"
+      :aria-label="$t('page.auth.newPasswordPlaceholder')"
       autocomplete="new-password"
       :maxlength="128"
     />
     <InputPassword
       v-model:value="confirmation"
-      placeholder="请再次输入新密码"
-      aria-label="确认新密码"
+      :placeholder="$t('page.auth.confirmPasswordPlaceholder')"
+      :aria-label="$t('page.auth.confirmPassword')"
       autocomplete="new-password"
       :maxlength="128"
     />
-    <Button type="primary" html-type="submit" :loading="busy">确认修改</Button>
-    <RouterLink to="/auth/login">返回登录</RouterLink>
+    <Button type="primary" html-type="submit" :loading="busy">
+      {{ $t('page.auth.confirmChange') }}
+    </Button>
+    <RouterLink to="/auth/login">{{ $t('page.auth.backToLogin') }}</RouterLink>
   </form>
 </template>

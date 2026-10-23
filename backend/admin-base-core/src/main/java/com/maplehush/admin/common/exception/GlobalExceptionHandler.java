@@ -9,10 +9,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -39,7 +41,8 @@ public class GlobalExceptionHandler {
         IllegalArgumentException.class,
         MissingServletRequestParameterException.class,
         MissingServletRequestPartException.class,
-        HttpMediaTypeNotSupportedException.class
+        HttpMediaTypeNotSupportedException.class,
+        MethodArgumentTypeMismatchException.class
     })
     public ResponseEntity<Result<Void>> handleInvalid(Exception exception) {
         return ResponseEntity.badRequest()
@@ -73,6 +76,21 @@ public class GlobalExceptionHandler {
                                 ErrorCode.INVALID_ARGUMENT.code(),
                                 ErrorCode.INVALID_ARGUMENT.value(),
                                 "头像文件不能超过 2 MiB"));
+    }
+
+    /**
+     * 请求方法错误保留 HTTP 405 和允许的方法，避免误报服务器内部故障。
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Result<Void>> handleMethod(
+            HttpRequestMethodNotSupportedException exception) {
+        return ResponseEntity.status(405)
+                .headers(exception.getHeaders())
+                .body(
+                        Result.fail(
+                                ErrorCode.BAD_REQUEST.code(),
+                                ErrorCode.BAD_REQUEST.value(),
+                                "请求方法不受支持"));
     }
 
     @ExceptionHandler(Exception.class)

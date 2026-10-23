@@ -2,12 +2,67 @@ import type { VxeTableGridColumns } from '@vben/plugins/vxe-table';
 
 import type { VbenFormSchema } from '#/adapter/form';
 import type { OnActionClickFn } from '#/adapter/vxe-table';
-import type { DeptRecord } from '#/api/system/dept';
+import type { DeptPayload, DeptRecord } from '#/api/system/dept';
 
 import { z } from '#/adapter/form';
 import { $t } from '#/locales';
 
-import { parentOptions } from './form-policy';
+interface TreeNode {
+  id: string;
+  name: string;
+  children?: TreeNode[];
+}
+
+interface ParentOption {
+  value: string;
+  title: string;
+  children: ParentOption[];
+}
+
+/**
+ * 将部门树转换为父级选择器选项；编辑时同时排除当前部门及其下级，避免形成循环层级。
+ */
+export function parentOptions(
+  tree: TreeNode[],
+  excludedId?: string,
+): ParentOption[] {
+  return tree
+    .filter((node) => node.id !== excludedId)
+    .map((node) => ({
+      value: node.id,
+      title: node.name,
+      children: parentOptions(node.children ?? [], excludedId),
+    }));
+}
+
+/**
+ * 清理并校验部门表单数据，统一根部门 ID，并确保提交给后端的是完整 DTO。
+ */
+export function buildDeptPayload(form: DeptPayload): DeptPayload {
+  const name = form.name.trim();
+  if (!name) throw new Error($t('system.dept.errors.nameRequired'));
+  if (name.length > 100) throw new Error($t('system.dept.errors.nameMax'));
+  const pid = form.pid || '0';
+  if (!/^(?:0|[1-9]\d{0,18})$/.test(pid) || BigInt(pid) > 9223372036854775807n)
+    throw new Error($t('system.dept.errors.parentInvalid'));
+  if (
+    !Number.isInteger(form.sort) ||
+    form.sort < -2147483648 ||
+    form.sort > 2147483647
+  )
+    throw new Error($t('system.dept.errors.sortInvalid'));
+  if (![0, 1].includes(form.status))
+    throw new Error($t('system.dept.errors.statusInvalid'));
+  if (form.remark.length > 500)
+    throw new Error($t('system.dept.errors.remarkMax'));
+  return {
+    pid,
+    name,
+    sort: form.sort,
+    status: form.status,
+    remark: form.remark,
+  };
+}
 
 /**
  * 获取编辑表单的字段配置。如果没有使用多语言，可以直接export一个数组常量
@@ -24,11 +79,8 @@ export function useSchema(
       rules: z
         .string()
         .trim()
-        .min(1, '部门名称必填')
-        .max(
-          100,
-          $t('ui.formRules.maxLength', [$t('system.dept.deptName'), 100]),
-        ),
+        .min(1, $t('system.dept.errors.nameRequired'))
+        .max(100, $t('system.dept.errors.nameMax')),
     },
     {
       component: 'TreeSelect',
@@ -38,7 +90,7 @@ export function useSchema(
         treeData: [
           {
             value: '0',
-            title: '根部门',
+            title: $t('system.dept.root'),
             children: parentOptions(tree, editId),
           },
         ],
@@ -50,7 +102,7 @@ export function useSchema(
       component: 'InputNumber',
       componentProps: { precision: 0, min: -2147483648, max: 2147483647 },
       fieldName: 'sort',
-      label: '排序',
+      label: $t('system.dept.sort'),
       defaultValue: 0,
     },
     {
@@ -102,7 +154,7 @@ export function useColumns(
       treeNode: true,
       width: 150,
     },
-    { field: 'sort', title: '排序', width: 100 },
+    { field: 'sort', title: $t('system.dept.sort'), width: 100 },
     {
       cellRender: { name: 'CellTag' },
       field: 'status',
@@ -132,7 +184,7 @@ export function useColumns(
             ? [
                 {
                   code: 'append',
-                  text: '新增下级',
+                  text: $t('system.dept.append'),
                 },
               ]
             : []),

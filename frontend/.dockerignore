@@ -26,8 +26,6 @@
 !apps/web-antdv-next/.env
 !apps/web-antdv-next/.env.production
 apps/backend-mock
-playground
-docs
 .superpowers
 .idea
 .vscode

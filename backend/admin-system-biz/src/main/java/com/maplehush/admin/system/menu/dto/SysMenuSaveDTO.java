@@ -14,7 +14,7 @@ import java.util.Map;
  * @param pid 父节点 ID；根节点使用空值或协议约定的根值
  * @param name 唯一的前端路由名称
  * @param type 菜单类型：catalog、menu、embedded、link 或 button
- * @param path 完整静态访问路径；保存时由服务端转换为相对子路径
+ * @param path 完整静态访问路径；外链可省略并由服务端按菜单名称生成，其他路由保存时转换为相对子路径
  * @param component 已登记的前端组件键，不含 .vue 后缀
  * @param redirect 路由重定向目标
  * @param authCode 小写接口权限码；目录不设置权限码

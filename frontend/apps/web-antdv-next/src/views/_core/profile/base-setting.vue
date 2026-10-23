@@ -3,9 +3,10 @@ import type { UploadFile, UploadProps } from 'antdv-next';
 
 import type { VbenFormSchema } from '#/adapter/form';
 
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
 import { ProfileBaseSetting } from '@vben/common-ui';
+import { preferences } from '@vben/preferences';
 import { useUserStore } from '@vben/stores';
 
 import { message } from 'antdv-next';
@@ -13,6 +14,7 @@ import { message } from 'antdv-next';
 import { z } from '#/adapter/form';
 import { getCurrentUserApi, updateAvatarApi, updateProfileApi } from '#/api';
 import { session } from '#/auth/session';
+import { $t } from '#/locales';
 
 import { profilePayload } from './model';
 
@@ -29,7 +31,7 @@ function avatarFiles(): UploadFile[] {
     ? [
         {
           uid: 'current-avatar',
-          name: '当前头像',
+          name: $t('page.profile.avatarName'),
           status: 'done',
           url: avatar.value,
         },
@@ -50,7 +52,7 @@ function beforeUpload(file: File) {
     !file.size ||
     file.size > 2 * 1024 * 1024
   ) {
-    error.value = '仅支持不超过 2 MB 的 JPG、PNG、WebP 图片';
+    error.value = $t('page.profile.avatarFilesHelp');
     Object.assign(file, { status: 'removed' });
     void restoreAvatar();
     return false;
@@ -65,7 +67,7 @@ async function uploadAvatar({
   onSuccess,
 }: Parameters<NonNullable<UploadProps['customRequest']>>[0]) {
   if (loading.value || uploading.value || !(file instanceof File)) {
-    onError?.(new Error('暂时无法上传，请稍后重试'));
+    onError?.(new Error($t('page.profile.errors.avatarUnavailable')));
     return;
   }
   error.value = '';
@@ -75,7 +77,7 @@ async function uploadAvatar({
     onProgress?.({ percent: 0 });
     const result = await updateAvatarApi(file);
     if (epoch !== session.state.epoch) {
-      throw new Error('登录状态已变化');
+      throw new Error($t('page.profile.errors.avatarUnavailable'));
     }
     avatar.value = result.avatar;
     Object.assign(file, { url: result.avatar });
@@ -85,9 +87,9 @@ async function uploadAvatar({
       userStore.setUserInfo({ ...userStore.userInfo, avatar: result.avatar });
     }
     await restoreAvatar();
-    message.success('头像已更新');
+    message.success($t('page.profile.errors.avatarChanged'));
   } catch (cause) {
-    error.value = '头像上传失败，请重新选择图片';
+    error.value = $t('page.profile.errors.avatarUpload');
     onError?.(cause instanceof Error ? cause : new Error(error.value));
     await restoreAvatar();
   } finally {
@@ -100,29 +102,29 @@ const formSchema = computed((): VbenFormSchema[] => [
     component: 'Input',
     componentProps: { disabled: true },
     fieldName: 'username',
-    label: '登录账号',
+    label: $t('page.profile.username'),
   },
   {
     component: 'Input',
     componentProps: { disabled: true },
     fieldName: 'roles',
-    label: '角色',
+    label: $t('page.profile.roles'),
   },
   {
     component: 'Input',
     fieldName: 'realName',
-    label: '姓名',
+    label: $t('page.profile.name'),
     rules: z
-      .string()
+      .string({ error: $t('page.profile.errors.nameRequired') })
       .trim()
-      .min(1, '请输入姓名')
-      .max(100, '姓名最多 100 个字符'),
+      .min(1, $t('page.profile.errors.nameRequired'))
+      .max(100, $t('page.profile.errors.nameMax')),
   },
   {
     component: 'Textarea',
     componentProps: { maxlength: 500, rows: 4, showCount: true },
     fieldName: 'introduction',
-    label: '个人简介',
+    label: $t('page.profile.introduction'),
   },
   {
     component: 'Upload',
@@ -138,9 +140,11 @@ const formSchema = computed((): VbenFormSchema[] => [
       showUploadList: { showRemoveIcon: false },
     }),
     fieldName: 'avatar',
-    label: '头像',
-    help: '支持 JPG、PNG、WebP，最大 2 MB；选择后立即更新',
-    renderComponentContent: () => ({ default: () => '上传头像' }),
+    label: $t('page.profile.avatar'),
+    help: $t('page.profile.avatarHelp'),
+    renderComponentContent: () => ({
+      default: () => $t('page.profile.uploadAvatar'),
+    }),
   },
 ]);
 
@@ -156,13 +160,13 @@ async function loadProfile() {
     avatar.value = data.avatar;
     await profileBaseSettingRef.value?.getFormApi().setValues({
       username: data.username,
-      roles: data.roles.join('、'),
+      roles: data.roles.join(preferences.app.locale === 'en-US' ? ', ' : '、'),
       realName: data.realName,
       introduction: data.introduction ?? '',
       avatar: avatarFiles(),
     });
   } catch {
-    error.value = '个人资料加载失败，请刷新页面重试';
+    error.value = $t('page.profile.errors.profileLoad');
   } finally {
     loading.value = false;
   }
@@ -176,7 +180,7 @@ async function handleSubmit(values: Record<string, unknown>) {
   try {
     payload = profilePayload(values);
   } catch (cause) {
-    error.value = (cause as Error).message;
+    error.value = $t((cause as Error).message);
     return;
   }
   saving.value = true;
@@ -194,15 +198,19 @@ async function handleSubmit(values: Record<string, unknown>) {
         introduction: result.introduction ?? '',
       });
     }
-    message.success('个人资料已保存');
+    message.success($t('page.profile.errors.profileSaved'));
   } catch {
-    error.value = '保存失败，请重试';
+    error.value = $t('page.profile.errors.profileSave');
   } finally {
     saving.value = false;
   }
 }
 
 onMounted(loadProfile);
+watch(
+  () => preferences.app.locale,
+  () => void restoreAvatar(),
+);
 </script>
 
 <template>
