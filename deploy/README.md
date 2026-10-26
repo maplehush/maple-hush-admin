@@ -41,6 +41,8 @@ curl -fsS http://127.0.0.1:8090/api/auth/captcha
 
 ## 变量、路径和网络
 
+- 前端构建使用 `NPM_REGISTRY`（默认 `https://registry.npmmirror.com`），同时传给 Corepack 下载 pnpm 和 pnpm 安装依赖。仅设置仓库 `.npmrc` 不会改变 Corepack 下载地址；官方 npm 源可达时可以改为 `https://registry.npmjs.org`。保留 packageManager 固定版本、锁文件及完整性校验，不通过关闭 TLS 或签名检查解决超时。
+
 - 根 `.env` 只含非秘密参数，`SECRETS_DIR` 相对仓库根（也可用受控绝对目录）。后端仍用原七个密钥文件和 configtree；不把密码/Key 放进根 `.env`、构建参数或前端环境。
 - include 显式指定仓库根为路径基准，用 [backend-root.yml](./compose/backend-root.yml) 修正后端构建与 Redis 脚本路径，用 [frontend-root.yml](./compose/frontend-root.yml) 修正前端构建目录。固定 [include.env](./compose/include.env) 仅提供非秘密默认值，不读取子目录 `.env`；根环境有优先级。
 - 根模式前端 upstream 固定为 `http://backend:8080`，即使 shell/根 `.env` 有独立模式的 BACKEND_UPSTREAM 也不会改成外部后端。浏览器仍访问同源 `/api`，不重复拼接路径。

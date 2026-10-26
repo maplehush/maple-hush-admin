@@ -7,6 +7,7 @@ services:
       args:
         NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
         NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.30-alpine}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     init: true
     restart: unless-stopped
     read_only: true

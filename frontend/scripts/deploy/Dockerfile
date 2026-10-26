@@ -2,6 +2,10 @@
 ARG NODE_IMAGE=node:22-bookworm-slim
 ARG NGINX_IMAGE=nginx:1.30-alpine
 FROM ${NODE_IMAGE} AS builder
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+# Corepack downloads pnpm before pnpm reads the repository's .npmrc.
+ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY} \
+    npm_config_registry=${NPM_REGISTRY}
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=true TZ=Asia/Shanghai \
     NODE_OPTIONS=--max-old-space-size=8192
 WORKDIR /app
