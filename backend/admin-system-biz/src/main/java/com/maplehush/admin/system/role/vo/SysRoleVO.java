@@ -1,5 +1,7 @@
 package com.maplehush.admin.system.role.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -17,12 +19,12 @@ import java.util.List;
  * @param updateTime 最后更新时间，格式为东八区 yyyy-MM-dd HH:mm:ss
  */
 public record SysRoleVO(
-        String id,
-        String roleCode,
-        String name,
-        Integer status,
-        Boolean builtIn,
-        String remark,
-        List<String> permissions,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+        @Schema(description = "业务资源 ID，以字符串返回，避免前端整数精度丢失", example = "1") String id,
+        @Schema(description = "稳定角色编码；创建时必填，修改时不能变更") String roleCode,
+        @Schema(description = "业务显示名称") String name,
+        @Schema(description = "启用状态：1 启用，0 停用；表单为空时按创建或修改规则处理", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Schema(description = "是否为受保护的内置角色") Boolean builtIn,
+        @Schema(description = "业务备注") String remark,
+        @Schema(description = "该角色已授予的菜单节点 ID 列表") List<String> permissions,
+        @Schema(description = "创建时间，格式为东八区 yyyy-MM-dd HH:mm:ss") LocalDateTime createTime,
+        @Schema(description = "最后更新时间，格式为东八区 yyyy-MM-dd HH:mm:ss") LocalDateTime updateTime) {}

@@ -2,6 +2,8 @@ package com.maplehush.admin.system.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -12,7 +14,7 @@ import jakarta.validation.constraints.Size;
  * @param introduction 个人简介，null 或空白清除
  */
 public record UserProfileDTO(
-        @NotBlank @Size(max = 100) String realName, @Size(max = 500) String introduction) {
+        @NotBlank @Size(max = 100) @Schema(description = "个人简介，null 或空白清除") String realName, @Size(max = 500) @Schema(description = "个人简介") String introduction) {
     /**
      * 拒绝未知字段，不能通过本人接口修改账号、角色、状态或头像 URL
      * @param field 未知字段名称

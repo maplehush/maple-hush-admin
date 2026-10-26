@@ -1,5 +1,7 @@
 # 仓库根目录统一部署
 
+按场景操作：[本地 Linux 虚拟机演练](../开发文档/部署运维/本地Linux虚拟机Docker部署.md)、[正式服务器部署](../开发文档/部署运维/正式服务器Docker部署.md)。本页保留共用 Compose 参数及实现说明；历史“本机没有 Docker 引擎”的记录指此前 Windows 验证环境，不代表新虚拟机的实际状态。
+
 入口是仓库根的 [docker-compose.yml](../docker-compose.yml)。需要 Linux 容器引擎与 **Docker Compose 2.24.4+**：使用 include 加载前后端配置，并通过覆盖文件调整根模式路径及端口；不复制维护四份服务定义。最终模型只有 `frontend/backend/mysql/redis` 四服务。
 
 ## 开发环境第一次启动

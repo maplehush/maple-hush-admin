@@ -6,6 +6,11 @@ import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.system.auth.security.AuthCookies;
 import com.maplehush.admin.system.auth.service.IAuthSessionService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -26,8 +31,12 @@ import tools.jackson.databind.json.JsonMapper;
 import java.util.Map;
 
 /**
+ * 认证会话
+ *
  * Cookie 会话接口由 Security 的来源与 CSRF 校验保护，不依赖 access
  */
+@SecurityRequirements
+@Tag(name = "认证会话")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthSessionController {
@@ -47,6 +56,7 @@ public class AuthSessionController {
         this.json = json;
     }
 
+    @Operation(summary = "获取 CSRF 请求令牌")
     @GetMapping("/csrf")
     public ResponseEntity<Result<Map<String, String>>> csrf(HttpServletRequest request) {
         CsrfToken token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
@@ -55,6 +65,7 @@ public class AuthSessionController {
                 .body(Result.ok(Map.of("token", token.getToken())));
     }
 
+    @Operation(summary = "刷新访问令牌", description = "请求来源必须通过 Origin 或 Referer 校验；请从同源文档页面调试。 浏览器自动携带 mh_refresh Cookie；先调用 GET /api/auth/csrf，再将 data.token 填入 X-XSRF-TOKEN 请求头。")
     @PostMapping("/refresh")
     public ResponseEntity<String> refresh(
             @CookieValue(name = AuthCookies.REFRESH, required = false) String refresh,
@@ -81,6 +92,7 @@ public class AuthSessionController {
                 .body(json.writeValueAsString(session.accessToken()));
     }
 
+    @Operation(summary = "退出当前会话", description = "请求来源必须通过 Origin 或 Referer 校验；请从同源文档页面调试。 浏览器自动携带 mh_refresh Cookie；先调用 GET /api/auth/csrf，再将 data.token 填入 X-XSRF-TOKEN 请求头。")
     @PostMapping("/logout")
     public ResponseEntity<Result<Void>> logout(
             @CookieValue(name = AuthCookies.REFRESH, required = false) String refresh,

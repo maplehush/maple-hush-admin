@@ -3,6 +3,8 @@ package com.maplehush.admin.system.log.dto;
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,17 +29,17 @@ import java.util.Set;
  * @param ascending 升序或降序，默认降序
  */
 public record SysLogQueryDTO(
-        int page,
-        int pageSize,
-        String username,
-        String eventType,
-        String operationCode,
-        Boolean success,
-        String traceId,
-        LocalDateTime startTime,
-        LocalDateTime endExclusive,
-        String sortBy,
-        boolean ascending) {
+        @Schema(description = "从 1 开始的页码") int page,
+        @Schema(description = "每页 1～100 条") int pageSize,
+        @Schema(description = "登录账号或操作人账号快照，精确匹配") String username,
+        @Schema(description = "登录事件筛选，操作日志为空") String eventType,
+        @Schema(description = "操作码精确匹配，登录日志为空") String operationCode,
+        @Schema(description = "是否成功，null 表示全部") Boolean success,
+        @Schema(description = "请求追踪标识精确匹配") String traceId,
+        @Schema(description = "起始时刻，包含") LocalDateTime startTime,
+        @Schema(description = "结束上界，不包含；日期输入包括全天") LocalDateTime endExclusive,
+        @Schema(description = "id/createTime，默认 createTime") String sortBy,
+        @Schema(description = "升序或降序，默认降序") boolean ascending) {
     private static final DateTimeFormatter TIME =
             DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss")
                     .withResolverStyle(ResolverStyle.STRICT);

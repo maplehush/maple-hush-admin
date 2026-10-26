@@ -3,6 +3,8 @@ package com.maplehush.admin.system.dict.dto;
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Set;
 
 /**
@@ -19,15 +21,15 @@ import java.util.Set;
  * @param ascending 是否升序，默认 true
  */
 public record SysDictQueryDTO(
-        int page,
-        int pageSize,
-        String dictCode,
-        String name,
-        Long dictTypeId,
-        String label,
-        Integer status,
-        String sortBy,
-        boolean ascending) {
+        @Schema(description = "页码字符串") int page,
+        @Schema(description = "每页 1 至 100 条") int pageSize,
+        @Schema(description = "类型编码包含筛选") String dictCode,
+        @Schema(description = "名称筛选") String name,
+        @Schema(description = "字典项所属类型；类型查询为空", example = "1") Long dictTypeId,
+        @Schema(description = "文本筛选") String label,
+        @Schema(description = "状态筛选", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Schema(description = "sort/id/label/value/createTime，缺省 sort") String sortBy,
+        @Schema(description = "是否升序，默认 true") boolean ascending) {
     /**
      * 构造类型分页条件
      * @param page 页码字符串

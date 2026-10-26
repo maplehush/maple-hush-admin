@@ -2,6 +2,8 @@ package com.maplehush.admin.system.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,7 +15,7 @@ import java.util.List;
  *
  * @param roleIds 普通角色 ID，至多 100 个；新增必须启用，原已关联停用角色可保留；空列表清空，null 拒绝
  */
-public record SysUserRolesDTO(@NotNull @Size(max = 100) List<@NotBlank String> roleIds) {
+public record SysUserRolesDTO(@NotNull @Size(max = 100) @Schema(description = "普通角色 ID，至多 100 个；新增必须启用，原已关联停用角色可保留；空列表清空，null 拒绝") List<@NotBlank String> roleIds) {
     /**
      * 拒绝表单契约之外的字段，避免敏感字段被静默忽略后误认为已修改
      *

@@ -3,6 +3,8 @@ package com.maplehush.admin.system.user.dto;
 import com.maplehush.admin.common.exception.BusinessException;
 import com.maplehush.admin.common.exception.ErrorCode;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -18,13 +20,13 @@ import java.time.LocalDateTime;
  * @param endTime 创建时间上界，包含所选日的 23:59:59
  */
 public record SysUserQueryDTO(
-        int page,
-        int pageSize,
-        String name,
-        Long deptId,
-        Integer status,
-        LocalDateTime startTime,
-        LocalDateTime endTime) {
+        @Schema(description = "页码字符串") int page,
+        @Schema(description = "每页 1 至 100 条") int pageSize,
+        @Schema(description = "姓名筛选") String name,
+        @Schema(description = "所属部门 ID；未提供时不筛选", example = "1") Long deptId,
+        @Schema(description = "0 或 1；空值表示全部状态", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Schema(description = "创建时间下界，包含所选日的 00:00:00") LocalDateTime startTime,
+        @Schema(description = "创建时间上界，包含所选日的 23:59:59") LocalDateTime endTime) {
     /**
      * 解析 HTTP 查询字符串并校验数值与日期边界
      *

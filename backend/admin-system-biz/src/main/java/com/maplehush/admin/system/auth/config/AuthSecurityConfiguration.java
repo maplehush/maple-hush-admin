@@ -1,6 +1,8 @@
 package com.maplehush.admin.system.auth.config;
 
 import com.maplehush.admin.common.api.Result;
+import com.maplehush.admin.system.docs.config.ApiDocumentationAccess;
+import org.springframework.core.env.Environment;
 import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.system.auth.security.AccessTokenFilter;
 import com.maplehush.admin.system.auth.security.AuthCookies;
@@ -72,7 +74,8 @@ public class AuthSecurityConfiguration {
             AccessTokenFilter accessTokenFilter,
             JsonMapper json,
             CookieCsrfTokenRepository csrfTokens,
-            AuthOriginPolicy origins)
+            AuthOriginPolicy origins,
+            Environment environment)
             throws Exception {
         http.csrf(
                         csrf ->
@@ -94,8 +97,13 @@ public class AuthSecurityConfiguration {
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
-                        auth ->
-                                auth.requestMatchers(
+                        auth -> {
+                            if (ApiDocumentationAccess.enabled(environment)) {
+                                auth.requestMatchers(ApiDocumentationAccess.PATHS).permitAll();
+                            } else {
+                                auth.requestMatchers(ApiDocumentationAccess.PATHS).denyAll();
+                            }
+                            auth.requestMatchers(
                                                 "/api/auth/captcha",
                                                 "/api/auth/login",
                                                 "/api/auth/initial-password",
@@ -106,7 +114,8 @@ public class AuthSecurityConfiguration {
                                                 "/actuator/health/**")
                                         .permitAll()
                                         .anyRequest()
-                                        .authenticated())
+                                        .authenticated();
+                        })
                 .exceptionHandling(
                         errors ->
                                 errors.accessDeniedHandler(

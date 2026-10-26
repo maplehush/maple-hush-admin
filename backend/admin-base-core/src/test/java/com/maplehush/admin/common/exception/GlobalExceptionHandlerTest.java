@@ -12,6 +12,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 class GlobalExceptionHandlerTest {
+    /**
+     * 仅供自动化测试使用，不上传到 Apifox。
+     *
+     * @ignore
+     */
     @RestController
     static class Endpoint {
         @GetMapping("/probe/{id}")

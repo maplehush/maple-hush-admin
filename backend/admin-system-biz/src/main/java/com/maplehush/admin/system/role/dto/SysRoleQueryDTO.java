@@ -2,6 +2,8 @@ package com.maplehush.admin.system.role.dto;
 
 import com.maplehush.admin.system.role.support.SysRoleGrantRules;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -17,12 +19,12 @@ import java.time.format.DateTimeParseException;
  * @param endTime 创建时间查询上界，包含所选结束日 23:59:59
  */
 public record SysRoleQueryDTO(
-        int page,
-        int pageSize,
-        String name,
-        Integer status,
-        LocalDateTime startTime,
-        LocalDateTime endTime) {
+        @Schema(description = "从 1 开始的页码") int page,
+        @Schema(description = "每页条数，范围为 1 至 100") int pageSize,
+        @Schema(description = "业务显示名称") String name,
+        @Schema(description = "启用状态：1 启用，0 停用；表单为空时按创建或修改规则处理", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Schema(description = "创建时间查询下界，包含所选开始日 00:00:00") LocalDateTime startTime,
+        @Schema(description = "创建时间查询上界，包含所选结束日 23:59:59") LocalDateTime endTime) {
     public static SysRoleQueryDTO parse(
             String page, String size, String name, String status, String start, String end) {
         int number = positive(page, Integer.MAX_VALUE);

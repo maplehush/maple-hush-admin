@@ -16,3 +16,19 @@ maple-hush:
   auth:
     jwt-secret: ${AUTH_JWT_SECRET}
     allowed-origins: ${AUTH_ALLOWED_ORIGINS}
+
+# 测试环境开放接口文档；认证写请求仍要求配置可信公开 Origin。
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    persist-authorization: false
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  override-with-generic-response: false
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-version: false

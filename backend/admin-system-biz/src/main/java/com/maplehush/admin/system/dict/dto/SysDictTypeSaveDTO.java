@@ -2,6 +2,8 @@ package com.maplehush.admin.system.dict.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -17,10 +19,10 @@ import jakarta.validation.constraints.Size;
  * @param remark 管理备注，至多 500 字符；空值清除
  */
 public record SysDictTypeSaveDTO(
-        @Pattern(regexp = "[a-z][a-z0-9_]{0,99}") String dictCode,
-        @NotBlank @Size(max = 100) String name,
-        @Min(0) @Max(1) Integer status,
-        @Size(max = 500) String remark) {
+        @Pattern(regexp = "[a-z][a-z0-9_]{0,99}") @Schema(description = "小写字母开头的字母/数字/下划线编码，至多 100 字符；创建必填，更新可省略") String dictCode,
+        @NotBlank @Size(max = 100) @Schema(description = "类型显示名称，至多 100 字符") String name,
+        @Min(0) @Max(1) @Schema(description = "1 启用、0 停用；创建缺省 1，更新省略保留", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Size(max = 500) @Schema(description = "管理备注，至多 500 字符；空值清除") String remark) {
     /**
      * 拒绝表单契约以外的字段，避免静默接受未知配置
      * @param field 未知字段名

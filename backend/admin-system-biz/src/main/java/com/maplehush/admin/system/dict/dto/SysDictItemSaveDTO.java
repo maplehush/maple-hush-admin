@@ -2,6 +2,8 @@ package com.maplehush.admin.system.dict.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -21,14 +23,14 @@ import jakarta.validation.constraints.Size;
  * @param remark 管理备注，至多 500 字符；空值清除
  */
 public record SysDictItemSaveDTO(
-        @NotBlank @Pattern(regexp = "[1-9][0-9]{0,18}") String dictTypeId,
-        @NotBlank @Size(max = 200) String label,
-        @NotBlank @Size(max = 200) String value,
-        @Pattern(regexp = "|#[0-9a-fA-F]{6}") String color,
-        Integer sort,
-        Boolean defaultItem,
-        @Min(0) @Max(1) Integer status,
-        @Size(max = 500) String remark) {
+        @NotBlank @Pattern(regexp = "[1-9][0-9]{0,18}") @Schema(description = "所属类型的正整数 ID 字符串", example = "1") String dictTypeId,
+        @NotBlank @Size(max = 200) @Schema(description = "显示文本，至多 200 字符") String label,
+        @NotBlank @Size(max = 200) @Schema(description = "同类型内唯一的存储值，至多 200 字符") String value,
+        @Pattern(regexp = "|#[0-9a-fA-F]{6}") @Schema(description = "可选六位 HEX；null 或空字符串清空，保存转小写") String color,
+        @Schema(description = "排序值，越小越靠前；创建缺省 0，更新省略保留") Integer sort,
+        @Schema(description = "默认标记；创建缺省 false，更新省略保留；与启停状态独立") Boolean defaultItem,
+        @Min(0) @Max(1) @Schema(description = "1 启用、0 停用；创建缺省 1，更新省略保留", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Size(max = 500) @Schema(description = "管理备注，至多 500 字符；空值清除") String remark) {
     /**
      * 拒绝未声明字段，不接受任意扩展配置
      * @param field 未知字段名

@@ -9,6 +9,11 @@ import com.maplehush.admin.system.auth.security.AuthCookies;
 import com.maplehush.admin.system.auth.service.IAuthRedisService;
 import com.maplehush.admin.system.auth.service.IAuthService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -28,8 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
+ * 认证登录
+ *
  * 匿名验证码与登录、专用凭据改密接口
  */
+@Tag(name = "认证登录")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -49,6 +57,8 @@ public class AuthController {
         this.csrfTokens = csrfTokens;
     }
 
+    @SecurityRequirements
+    @Operation(summary = "获取图片验证码")
     @GetMapping("/captcha")
     public ResponseEntity<Result<IAuthRedisService.Captcha>> captcha(HttpServletRequest request) {
         return ResponseEntity.ok()
@@ -56,6 +66,8 @@ public class AuthController {
                 .body(Result.ok(redis.issueCaptcha(request.getRemoteAddr())));
     }
 
+    @SecurityRequirements
+    @Operation(summary = "登录并签发会话", description = "请求来源必须通过 Origin 或 Referer 校验；请从同源文档页面调试。")
     @PostMapping("/login")
     public ResponseEntity<Result<Map<String, Object>>> login(
             @Valid @RequestBody LoginDTO input,
@@ -95,6 +107,7 @@ public class AuthController {
         return response.body(Result.ok(data));
     }
 
+    @Operation(summary = "首次登录修改密码", description = "Authorization 使用登录返回的 passwordChangeToken，不接受普通 accessToken。成功后重新登录。")
     @PutMapping("/initial-password")
     public ResponseEntity<Result<Void>> initialPassword(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false)

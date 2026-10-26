@@ -1,5 +1,7 @@
 package com.maplehush.admin.system.dict.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 
 /**
@@ -17,14 +19,14 @@ import java.time.LocalDateTime;
  * @param updateTime 东八区秒级更新时间
  */
 public record SysDictItemVO(
-        String id,
-        String dictTypeId,
-        String label,
-        String value,
-        String color,
-        Integer sort,
-        Boolean defaultItem,
-        Integer status,
-        String remark,
-        LocalDateTime createTime,
-        LocalDateTime updateTime) {}
+        @Schema(description = "字典项 ID 字符串", example = "1") String id,
+        @Schema(description = "所属类型 ID 字符串", example = "1") String dictTypeId,
+        @Schema(description = "显示文本") String label,
+        @Schema(description = "存储值") String value,
+        @Schema(description = "可选小写六位 HEX，未配置为空") String color,
+        @Schema(description = "排序值") Integer sort,
+        @Schema(description = "是否为默认项，与启停独立") Boolean defaultItem,
+        @Schema(description = "1 启用、0 停用", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Schema(description = "管理备注") String remark,
+        @Schema(description = "东八区秒级创建时间") LocalDateTime createTime,
+        @Schema(description = "东八区秒级更新时间") LocalDateTime updateTime) {}

@@ -2,6 +2,8 @@ package com.maplehush.admin.system.menu.vo;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 import java.util.Map;
 
@@ -22,14 +24,14 @@ import java.util.Map;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SysMenuVO(
-        String id,
-        String pid,
-        String name,
-        String type,
-        Integer status,
-        String path,
-        String component,
-        String redirect,
-        String authCode,
-        Map<String, Object> meta,
-        List<SysMenuVO> children) {}
+        @Schema(description = "业务资源 ID，以字符串返回，避免前端整数精度丢失", example = "1") String id,
+        @Schema(description = "父节点 ID；根节点使用空值或协议约定的根值") String pid,
+        @Schema(description = "唯一的前端路由名称") String name,
+        @Schema(description = "菜单类型：catalog、menu、embedded、link 或 button") String type,
+        @Schema(description = "启用状态：1 启用，0 停用；表单为空时按创建或修改规则处理", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Schema(description = "完整静态访问路径；外链路径由服务端按菜单名称生成") String path,
+        @Schema(description = "已登记的前端组件键，不含 .vue 后缀") String component,
+        @Schema(description = "路由重定向目标") String redirect,
+        @Schema(description = "小写接口权限码；目录不设置权限码") String authCode,
+        @Schema(description = "通过白名单校验的路由元数据，含标题、图标和排序等展示信息") Map<String, Object> meta,
+        @Schema(description = "按稳定顺序排列的子节点；叶节点为空值，响应中省略该字段") List<SysMenuVO> children) {}

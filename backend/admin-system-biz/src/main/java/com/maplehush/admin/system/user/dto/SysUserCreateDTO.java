@@ -2,6 +2,8 @@ package com.maplehush.admin.system.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -23,13 +25,13 @@ import java.util.List;
  * @param remark 管理员备注，与本人简介分开保存
  */
 public record SysUserCreateDTO(
-        @NotBlank @Size(max = 64) String username,
-        @NotBlank @Size(max = 100) String name,
-        @Size(max = 19) String deptId,
-        @NotEmpty @Size(max = 100) List<@NotBlank String> roleIds,
-        @Min(0) @Max(1) Integer status,
-        @Size(max = 500) String remark,
-        @Pattern(regexp = "[a-f0-9]{32}") String avatarUploadId) {
+        @NotBlank @Size(max = 64) @Schema(description = "登录账号，至多 64 字符，创建后不可修改") String username,
+        @NotBlank @Size(max = 100) @Schema(description = "管理页姓名，映射 real_name") String name,
+        @Size(max = 19) @Schema(description = "所属部门 ID；空值或 0 表示未分配", example = "1") String deptId,
+        @NotEmpty @Size(max = 100) @Schema(description = "必须分配的普通角色 ID，至少一个") List<@NotBlank String> roleIds,
+        @Min(0) @Max(1) @Schema(description = "1 启用、0 停用；缺省为 1", allowableValues = {"0", "1"}, example = "1") Integer status,
+        @Size(max = 500) @Schema(description = "管理员备注，与本人简介分开保存") String remark,
+        @Pattern(regexp = "[a-f0-9]{32}") @Schema(description = "可选的当前操作人上传标识；省略/null 保留原头像") String avatarUploadId) {
     /**
      * 拒绝表单契约之外的字段，避免敏感字段被静默忽略后误认为已修改
      *

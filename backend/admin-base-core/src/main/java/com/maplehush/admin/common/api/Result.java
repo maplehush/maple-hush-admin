@@ -2,6 +2,8 @@ package com.maplehush.admin.common.api;
 
 import com.maplehush.admin.common.constant.ResultCodes;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * 与前端约定的统一响应容器，traceId 由响应头携带
  *
@@ -11,7 +13,10 @@ import com.maplehush.admin.common.constant.ResultCodes;
  * @param error 失败时的稳定错误标识，成功时为空
  * @param message 可向用户展示的安全提示，不包含内部异常详情
  */
-public record Result<T>(int code, T data, String error, String message) {
+public record Result<T>(@Schema(description = "稳定业务码，0 表示成功", example = "0") int code,
+        @Schema(description = "业务响应数据；失败时为空") T data,
+        @Schema(description = "稳定错误标识；成功时为空") String error,
+        @Schema(description = "安全提示消息", example = "ok") String message) {
     /**
      * 构造统一成功响应
      *

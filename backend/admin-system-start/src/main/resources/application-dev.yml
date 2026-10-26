@@ -15,3 +15,19 @@ maple-hush:
     allowed-origins: ${AUTH_ALLOWED_ORIGINS:http://localhost:5999,http://127.0.0.1:5999}
   redis:
     key-prefix: ${REDIS_KEY_PREFIX:maple_hush_dev}
+
+# 开发环境直接访问后端同源 /doc.html，沿用浏览器 Cookie 和来源校验。
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    persist-authorization: false
+  paths-to-match: /api/**
+  default-produces-media-type: application/json
+  override-with-generic-response: false
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-version: false

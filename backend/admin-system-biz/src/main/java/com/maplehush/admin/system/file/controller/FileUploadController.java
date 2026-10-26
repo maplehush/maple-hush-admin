@@ -6,6 +6,10 @@ import com.maplehush.admin.common.exception.ErrorCode;
 import com.maplehush.admin.system.file.service.IFileUploadService;
 import com.maplehush.admin.system.file.vo.FileUploadVO;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,8 +19,11 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 import java.util.Set;
 
 /**
+ * 文件上传
+ *
  * 系统统一文件上传入口，首版按公开图片白名单校验，不直接修改业务资料
  */
+@Tag(name = "文件上传")
 @RestController
 @RequestMapping("/api/files")
 public class FileUploadController {
@@ -31,6 +38,7 @@ public class FileUploadController {
      * @param request 只含一个 file 的 multipart 请求
      * @return 上传标识和文件元数据
      */
+    @Operation(summary = "上传公开图片")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<FileUploadVO> upload(MultipartHttpServletRequest request) {
         if (!request.getParameterMap().isEmpty()

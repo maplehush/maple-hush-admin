@@ -2,6 +2,8 @@ package com.maplehush.admin.system.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -12,8 +14,8 @@ import jakarta.validation.constraints.Size;
  * @param newPassword 新密码，后端额外验证 BCrypt 字节上限及常见密码
  */
 public record UserPasswordDTO(
-        @NotBlank @Size(max = 128) String oldPassword,
-        @NotBlank @Size(min = 8, max = 128) String newPassword) {
+        @NotBlank @Size(max = 128) @Schema(description = "当前密码，不做 trim", format = "password", accessMode = Schema.AccessMode.WRITE_ONLY) String oldPassword,
+        @NotBlank @Size(min = 8, max = 128) @Schema(description = "新密码，后端额外验证 BCrypt 字节上限及常见密码", format = "password", accessMode = Schema.AccessMode.WRITE_ONLY) String newPassword) {
     /**
      * 拒绝未知字段，不能通过本人接口修改账号、角色、状态或头像 URL
      * @param field 未知字段名称

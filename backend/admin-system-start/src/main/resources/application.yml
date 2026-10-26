@@ -55,3 +55,12 @@ maple-hush:
     access-key-id: ${OSS_ACCESS_KEY_ID:}
     access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
     security-token: ${OSS_SECURITY_TOKEN:}
+
+# 文档默认关闭；application-dev.yml 与 application-test.yml 开启。
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+knife4j:
+  enable: false

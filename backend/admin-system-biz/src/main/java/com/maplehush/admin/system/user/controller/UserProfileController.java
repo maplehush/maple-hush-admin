@@ -9,6 +9,10 @@ import com.maplehush.admin.system.user.dto.UserProfileDTO;
 import com.maplehush.admin.system.user.service.IUserProfileService;
 import com.maplehush.admin.system.user.vo.UserProfileVO;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -27,8 +31,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * 个人中心
+ *
  * 本人资料入口，普通已登录用户即可使用，不依赖系统用户管理权限
  */
+@Tag(name = "个人中心")
 @RestController
 @RequestMapping("/api/user")
 public class UserProfileController {
@@ -48,6 +55,7 @@ public class UserProfileController {
      * @param dto 资料全量表单
      * @return 当前用户资料
      */
+    @Operation(summary = "修改本人资料")
     @PutMapping("/profile")
     public Result<UserProfileVO> profile(@Valid @RequestBody UserProfileDTO dto) {
         return Result.ok(service.updateProfile(dto));
@@ -60,6 +68,7 @@ public class UserProfileController {
      * @param response 当前响应，写出清 Cookie 头
      * @return 空成功体，不发新登录凭据
      */
+    @Operation(summary = "修改本人密码并退出")
     @PutMapping("/password")
     public Result<Void> password(
             @Valid @RequestBody UserPasswordDTO dto,
@@ -76,6 +85,7 @@ public class UserProfileController {
      * @param request multipart 请求，不接受额外普通字段或文件字段
      * @return 长期头像 URL
      */
+    @Operation(summary = "上传本人头像")
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<Map<String, String>> avatar(MultipartHttpServletRequest request) {
         if (!request.getParameterMap().isEmpty()
