@@ -29,6 +29,18 @@ curl -fsS http://127.0.0.1:8090/api/auth/captcha
 
 ## 整体和单侧命令
 
+代码已拉取、环境和文件密钥已准备后，日常整体部署只需一条命令：
+
+```sh
+docker compose up -d --build --wait --wait-timeout 600
+```
+
+它先构建前后端镜像，再更新容器并等待四服务健康；仍复用有效构建缓存。`--wait-timeout` 是服务启动健康等待时间，不是镜像构建超时。仅 `up -d` 或 `restart` 不保证把改动的源码编入镜像。健康检查成功后仍需验证浏览器登录和本次修改的功能。
+
+如果服务器已确认宿主机能访问依赖源、默认构建网络超时，在根 `.env` 设置 `BUILD_NETWORK=host`，然后继续使用同一条命令；联网正常的环境保留默认 `BUILD_NETWORK=default`。该参数只影响构建期间的 `RUN` 网络，运行中的四服务仍使用 Compose 项目网络。官方语义见 [Compose build.network](https://docs.docker.com/reference/compose-file/build/#network)。
+
+2026-10-27 配置验证：使用已校验 SHA-256 的 Compose standalone 5.6.0，在根目录分别渲染 `BUILD_NETWORK=default` 和 `host`，前后端构建网络均按参数生效，四服务、运行时项目网络和前端回环端口保持原配置，后端仍无宿主机端口；`config --quiet` 通过。本机无 Docker 引擎，尚未执行这次一条命令的实际构建和启动，需在服务器验收。
+
 | 根目录命令 | 实际作用 |
 | --- | --- |
 | `docker compose up -d --build` | 创建/更新四服务；后端等待 MySQL、Redis healthy |
@@ -41,7 +53,7 @@ curl -fsS http://127.0.0.1:8090/api/auth/captcha
 
 ## 变量、路径和网络
 
-- 前端构建使用 `NPM_REGISTRY`（默认 `https://registry.npmmirror.com`），同时传给 Corepack 下载 pnpm 和 pnpm 安装依赖。仅设置仓库 `.npmrc` 不会改变 Corepack 下载地址；官方 npm 源可达时可以改为 `https://registry.npmjs.org`。保留 packageManager 固定版本、锁文件及完整性校验，不通过关闭 TLS 或签名检查解决超时。
+- 前端构建使用 `NPM_REGISTRY`（默认 `https://registry.npmmirror.com`），同时传给 Corepack 下载 pnpm 和 pnpm 安装依赖。仅设置仓库 `.npmrc` 不会改变 Corepack 下载地址；官方 npm 源可达时可以改为 `https://registry.npmjs.org`。保留 packageManager 固定版本、锁文件及完整性校验，不通过关闭 TLS 或签名检查解决超时。宿主机配置的 npm、Maven、apt 源不自动进入 Docker 构建容器；Maven 当前使用镜像内的默认配置，只有确认下载失败或缓慢后才针对构建环境配置，不为本项目统一改动 pip/Go/Gradle 源。
 
 - 根 `.env` 只含非秘密参数，`SECRETS_DIR` 相对仓库根（也可用受控绝对目录）。后端仍用原七个密钥文件和 configtree；不把密码/Key 放进根 `.env`、构建参数或前端环境。
 - include 显式指定仓库根为路径基准，用 [backend-root.yml](./compose/backend-root.yml) 修正后端构建与 Redis 脚本路径，用 [frontend-root.yml](./compose/frontend-root.yml) 修正前端构建目录。固定 [include.env](./compose/include.env) 仅提供非秘密默认值，不读取子目录 `.env`；根环境有优先级。

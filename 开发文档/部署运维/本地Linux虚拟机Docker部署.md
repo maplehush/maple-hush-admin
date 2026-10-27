@@ -110,10 +110,12 @@ AUTH_ALLOWED_ORIGINS=http://localhost:8090,http://127.0.0.1:8090
 
 ## 5. 构建并启动
 
+2026-10-27 补充：当前服务器已验证默认容器网络访问 npm 超时、使用宿主机网络可成功。在根 `.env` 增加 `BUILD_NETWORK=host`，拉取支持该参数的版本后，统一使用下面的整体部署命令，无需分别执行两个 `docker build`。此参数只影响构建网络，不改变运行时容器网络。宿主机换源也不会自动改变构建镜像内部的依赖源。
+
 ```sh
 docker compose config --quiet
 docker compose config --services
-docker compose up -d --build --wait --wait-timeout 300
+docker compose up -d --build --wait --wait-timeout 600
 docker compose ps
 ```
 
