@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { describe, expect, it } from 'vitest';
 
-import { auditQuery } from '../../src/views/system/log/model';
+import { auditQuery } from '../../src/views/log/data';
 describe('audit query contract', () => {
   it('encodes full wall-clock seconds and keeps explicit failure filter', () =>
     expect(

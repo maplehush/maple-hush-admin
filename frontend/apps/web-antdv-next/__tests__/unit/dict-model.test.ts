@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { colorText, dictItemPayload } from '../../src/views/system/dict/model';
+import { colorText, dictItemPayload } from '../../src/views/system/dict/data';
 describe('dictionary input and readable labels', () => {
   const form = {
     dictTypeId: '7',

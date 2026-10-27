@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { authHttp } from '../../src/auth/auth-http';
+import { $t } from '../../src/locales';
 const input = {
   username: 'test',
   password: 'not-persisted',
@@ -57,7 +58,9 @@ describe('native authentication contract', () => {
         },
       },
     ]);
-    await expect(authHttp.login(input)).rejects.toThrow('登录响应格式');
+    await expect(authHttp.login(input)).rejects.toThrow(
+      $t('errors.invalidLoginResponse'),
+    );
   });
   it('accepts the raw JSON refresh string and sends CSRF plus cookie', async () => {
     const fetcher = transport([

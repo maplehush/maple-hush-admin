@@ -30,6 +30,8 @@
     "errors": {
       "captchaLoad": "验证码加载失败，请稍后重试",
       "login": "登录失败，请检查账号、密码和验证码",
+      "loginProcessing": "登录处理异常，请刷新页面后重试",
+      "sessionStorage": "无法协调浏览器会话，请检查站点存储权限后重试",
       "initialPassword": "密码修改失败，请重试",
       "accessLoad": "用户或权限加载失败，请稍后刷新重试",
       "sessionChanged": "登录状态已变化，请重新进入页面"

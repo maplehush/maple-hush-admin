@@ -30,6 +30,8 @@
     "errors": {
       "captchaLoad": "Could not load the verification code. Try again later.",
       "login": "Sign-in failed. Check your username, password, and verification code.",
+      "loginProcessing": "Could not finish signing in. Refresh the page and try again.",
+      "sessionStorage": "Could not coordinate your browser session. Check site storage permissions and try again.",
       "initialPassword": "Could not change the password. Try again.",
       "accessLoad": "Could not load your account or permissions. Refresh and try again.",
       "sessionChanged": "Your sign-in state changed. Reopen the page."

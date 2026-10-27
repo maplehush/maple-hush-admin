@@ -64,6 +64,10 @@ docker compose run --rm --no-deps \
   --volume /受控恢复目录:/recovery \
   backend \
   --spring.main.web-application-type=none \
+  --spring.autoconfigure.exclude=com.github.xiaoymin.knife4j.spring.configuration.Knife4jAutoConfiguration,com.github.xiaoymin.knife4j.spring.configuration.insight.Knife4jInsightAutoConfiguration \
+  --springdoc.api-docs.enabled=false \
+  --springdoc.swagger-ui.enabled=false \
+  --knife4j.enable=false \
   --maple-hush.maintenance.recover-super-admin=true \
   --maple-hush.maintenance.recovery-output=/recovery/one-time-password
 ```

@@ -8,6 +8,7 @@ import { AuthenticationLogin, z } from '@vben/common-ui';
 import { message } from 'antdv-next';
 
 import { getCaptchaApi } from '#/api';
+import { resolveLoginFailure } from '#/auth/login-error';
 import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
 
@@ -83,8 +84,8 @@ async function submit(values: Record<string, unknown>) {
   }
   try {
     await authStore.authLogin({ ...values, captchaId: captchaId.value });
-  } catch {
-    message.error($t('page.auth.errors.login'));
+  } catch (error) {
+    message.error(resolveLoginFailure(error));
     await refreshCaptcha();
   }
 }

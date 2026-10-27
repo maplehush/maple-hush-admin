@@ -1,3 +1,5 @@
+import { SessionCoordinationError } from './browser-session';
+
 export interface SessionState {
   epoch: string;
   revision: number;
@@ -109,7 +111,10 @@ export class SessionCoordinator {
           return token;
         });
       } catch (error) {
-        if ((error as { status?: number }).status !== 503) {
+        if (
+          !(error instanceof SessionCoordinationError) &&
+          (error as { status?: number }).status !== 503
+        ) {
           this.invalidate(epoch);
         }
         throw error;

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { SessionCoordinationError } from '../../src/auth/browser-session';
 import {
   SessionCoordinator,
   type SessionPorts,
@@ -154,6 +155,14 @@ describe('session coordination', () => {
     await expect(
       coordinator.refresh('old-access', 'session-one'),
     ).rejects.toThrow();
+    expect(coordinator.state.token).toBe('old-access');
+  });
+  it('does not invalidate another tab while waiting for browser coordination', async () => {
+    const { ports, coordinator } = fixture();
+    ports.lock = async () => { throw new SessionCoordinationError(); };
+    await expect(coordinator.refresh('old-access', 'session-one'))
+      .rejects.toBeInstanceOf(SessionCoordinationError);
+    expect(ports.transport.refresh).not.toHaveBeenCalled();
     expect(coordinator.state.token).toBe('old-access');
   });
   it('requires login without submitting refresh when coordination is unavailable', async () => {

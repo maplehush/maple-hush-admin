@@ -1,4 +1,5 @@
 import { authHttp } from './auth-http';
+import { createSessionEpoch, SessionCoordinationError, withSessionLock } from './browser-session';
 import { SessionCoordinator, type SessionState } from './session-coordinator';
 export const SESSION_KEY = 'maple-hush-admin:auth:v1';
 const empty: SessionState = { epoch: 'anonymous', revision: 0, token: null };
@@ -35,9 +36,9 @@ function publish(state: SessionState, remote = false) {
   }
 }
 export const session = new SessionCoordinator({
-  available: () => storageAvailable && !!navigator.locks,
+  available: () => storageAvailable && typeof indexedDB !== 'undefined',
   read,
-  random: () => crypto.randomUUID(),
+  random: createSessionEpoch,
   write: (state) => {
     const previous = read();
     fallback = state;
@@ -45,7 +46,7 @@ export const session = new SessionCoordinator({
       localStorage.setItem(SESSION_KEY, JSON.stringify(state));
     } catch {
       storageAvailable = false;
-      fallback = { epoch: crypto.randomUUID(), revision: 0, token: null };
+      fallback = { epoch: createSessionEpoch(), revision: 0, token: null };
       try {
         localStorage.removeItem(SESSION_KEY);
       } catch {
@@ -53,27 +54,12 @@ export const session = new SessionCoordinator({
       }
       publish(fallback);
       channel?.postMessage({ invalidatedEpoch: previous.epoch });
-      throw new Error('无法保存会话，请重新登录');
+      throw new SessionCoordinationError();
     }
     publish(state);
     channel?.postMessage('changed');
   },
-  lock: async (operation) => {
-    const abort = new AbortController();
-    const timer = window.setTimeout(() => abort.abort(), 7_000);
-    try {
-      return await navigator.locks.request(
-        SESSION_KEY,
-        { signal: abort.signal },
-        async () => {
-          window.clearTimeout(timer);
-          return operation();
-        },
-      );
-    } finally {
-      window.clearTimeout(timer);
-    }
-  },
+  lock: withSessionLock,
   transport: authHttp,
 });
 channel?.addEventListener('message', (event) => {
