@@ -285,7 +285,7 @@ function rowActions(row: UserRecord, dropdown = false) {
           <template #toolbar-tools>
             <Button v-if="can('create')" type="primary" @click="onCreate">
               <Plus class="size-5" />
-              {{ $t('ui.actionTitle.create', [$t('system.user.entity')]) }}
+              {{ $t('ui.actionTitle.create', [$t('system.user.entity')]) }}-mh
             </Button>
           </template>
           <template #action="{ row }">
