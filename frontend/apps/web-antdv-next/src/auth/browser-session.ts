@@ -87,17 +87,19 @@ export async function withSessionLock<T>(
           if (!started) {
             started = true;
             window.clearTimeout(timer);
-            void Promise.resolve().then(operation).then(
-              (value) => {
-                result = value;
-                finished = true;
-              },
-              (error: unknown) => {
-                failure = error;
-                failed = true;
-                finished = true;
-              },
-            );
+            void Promise.resolve()
+              .then(operation)
+              .then(
+                (value) => {
+                  result = value;
+                  finished = true;
+                },
+                (error: unknown) => {
+                  failure = error;
+                  failed = true;
+                  finished = true;
+                },
+              );
           }
           if (!finished) {
             keepAlive();

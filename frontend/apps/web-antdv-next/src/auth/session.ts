@@ -1,5 +1,9 @@
 import { authHttp } from './auth-http';
-import { createSessionEpoch, SessionCoordinationError, withSessionLock } from './browser-session';
+import {
+  createSessionEpoch,
+  SessionCoordinationError,
+  withSessionLock,
+} from './browser-session';
 import { SessionCoordinator, type SessionState } from './session-coordinator';
 export const SESSION_KEY = 'maple-hush-admin:auth:v1';
 const empty: SessionState = { epoch: 'anonymous', revision: 0, token: null };
