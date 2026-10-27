@@ -213,18 +213,27 @@ class UserManagementIT {
     }
 
     @Test
-    void createRequiresAtLeastOneRole() throws Exception {
+    void createAllowsEmptyOmittedAndNullRoles() throws Exception {
         var emptyRoles = form("t10_missing_role", "Missing role", null, List.of());
-        assertEquals(400, request("POST", "/api/system/user", emptyRoles, access).statusCode());
+        assertEquals(200, request("POST", "/api/system/user", emptyRoles, access).statusCode());
 
         var missingRoles = form("t10_omitted_role", "Omitted role", null, List.of());
         missingRoles.remove("roleIds");
-        assertEquals(400, request("POST", "/api/system/user", missingRoles, access).statusCode());
+        assertEquals(200, request("POST", "/api/system/user", missingRoles, access).statusCode());
 
+        var nullRoles = form("t10_null_role", "Null role", null, List.of());
+        nullRoles.put("roleIds", null);
+        assertEquals(200, request("POST", "/api/system/user", nullRoles, access).statusCode());
+
+        assertEquals(
+                3,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_user WHERE username IN ('t10_missing_role','t10_omitted_role','t10_null_role')",
+                        Integer.class));
         assertEquals(
                 0,
                 jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM sys_user WHERE username IN ('t10_missing_role','t10_omitted_role')",
+                        "SELECT COUNT(*) FROM sys_user_role WHERE user_id IN (SELECT id FROM sys_user WHERE username IN ('t10_missing_role','t10_omitted_role','t10_null_role'))",
                         Integer.class));
     }
 
@@ -492,12 +501,12 @@ class UserManagementIT {
     }
 
     @Test
-    void createWithoutAssignPermissionAndEnablingPrivilegedAccountAreRejected() throws Exception {
+    void createWithoutRolesNeedsOnlyCreateButAssigningAndEnablingStillNeedAssignPermission() throws Exception {
         long limited = role("t10_limited", List.of(1L, 10L, 11L, 12L));
         long operator = ordinary("t10_limited", List.of(limited));
         String token = sessions.open(operator, 0).accessToken();
         assertEquals(
-                400,
+                200,
                 request(
                                 "POST",
                                 "/api/system/user",
@@ -753,20 +762,11 @@ class UserManagementIT {
 
     private long create(String username, String name, Long dept, List<String> roles)
             throws Exception {
-        Long fixtureRole = null;
-        List<String> assigned = roles;
-        if (roles.isEmpty()) {
-            fixtureRole = role("t10_fixture_" + UUID.randomUUID().toString().substring(0, 8), List.of());
-            assigned = List.of(Long.toString(fixtureRole));
-        }
         var response =
-                request("POST", "/api/system/user", form(username, name, dept, assigned), access);
+                request("POST", "/api/system/user", form(username, name, dept, roles), access);
         assertEquals(200, response.statusCode(), response.body());
         assertFalse(response.body().contains("12345678"));
         long id = Long.parseLong(data(response).get("id").asString());
-        if (fixtureRole != null) {
-            jdbc.update("DELETE FROM sys_user_role WHERE user_id=? AND role_id=?", id, fixtureRole);
-        }
         return id;
     }
 

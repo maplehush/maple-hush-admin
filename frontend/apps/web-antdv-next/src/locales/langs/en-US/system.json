@@ -35,7 +35,6 @@
       "deptEventInvalid": "The department selection event is invalid.",
       "idInvalid": "ID must be a positive integer within the Long range.",
       "roleCount": "No more than 100 roles can be assigned.",
-      "roleRequired": "Select at least one role.",
       "nameRequired": "Enter a name.",
       "nameMax": "Name must be no more than 100 characters.",
       "remarkMax": "Remark must be no more than 500 characters.",

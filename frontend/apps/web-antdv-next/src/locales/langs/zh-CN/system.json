@@ -34,7 +34,6 @@
       "deptEventInvalid": "无效的部门选择事件",
       "idInvalid": "ID 须为 Long 范围内的正整数字符串",
       "roleCount": "角色数量不能超过 100 个",
-      "roleRequired": "请至少选择一个角色",
       "nameRequired": "请输入姓名",
       "nameMax": "姓名最多 100 个字符",
       "remarkMax": "备注最多 500 个字符",

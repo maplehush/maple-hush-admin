@@ -72,8 +72,9 @@ export function useFormSchema(
             rules: options.canListRole
               ? z
                   .array(z.string())
-                  .min(1, $t('system.user.errors.roleRequired'))
-              : z.string().min(1, $t('system.user.errors.roleRequired')),
+                  .max(100, $t('system.user.errors.roleCount'))
+                  .optional()
+              : z.string().optional(),
           } as VbenFormSchema,
         ]
       : []),
@@ -392,7 +393,6 @@ export function buildUserPayload(
     throw new Error($t('system.user.errors.avatarExpired'));
   if (editing) return payload;
   const roleIds = parseRoleIds(form.roleIds.join(','));
-  if (!roleIds.length) throw new Error($t('system.user.errors.roleRequired'));
   const username = form.username.trim();
   if (!username || username.length > 64)
     throw new Error(

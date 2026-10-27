@@ -10,6 +10,7 @@ import {
   departmentIdFromTreeEvent,
   parseRoleIds,
   pendingImageFromAvatar,
+  useFormSchema,
 } from './data';
 
 describe('用户管理表单边界', () => {
@@ -113,8 +114,8 @@ describe('用户管理表单边界', () => {
       ),
     ).toThrow();
   });
-  it('新增用户必须至少选择一个角色', () => {
-    expect(() =>
+  it('新增用户可以不分配角色', () => {
+    expect(
       buildUserPayload(
         {
           username: 'alice',
@@ -126,7 +127,25 @@ describe('用户管理表单边界', () => {
         },
         false,
       ),
-    ).toThrow();
+    ).toMatchObject({ username: 'alice', roleIds: [] });
+  });
+  it('角色选择和手动输入均允许留空，仍校验已输入角色的数量', () => {
+    for (const canListRole of [true, false]) {
+      const field = useFormSchema({ canAssign: true, canListRole }).find(
+        (item) => item.fieldName === 'roleIds',
+      );
+      if (!field || !('rules' in field))
+        throw new Error('角色字段缺少校验配置');
+      const rules = field.rules as {
+        safeParse: (value: unknown) => { success: boolean };
+      };
+      expect(rules.safeParse(undefined).success).toBe(true);
+      expect(rules.safeParse(canListRole ? [] : '').success).toBe(true);
+      if (canListRole)
+        expect(
+          rules.safeParse(Array.from({ length: 101 }, () => '2')).success,
+        ).toBe(false);
+    }
   });
   it('明确超管或未知身份不能操作受保护入口，普通账户可以', () => {
     expect(canManageProtectedAction({ superAdmin: true })).toBe(false);

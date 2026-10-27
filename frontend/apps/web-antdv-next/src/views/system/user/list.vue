@@ -283,11 +283,7 @@ function rowActions(row: UserRecord, dropdown = false) {
       <div class="min-w-0 flex-1">
         <Grid :table-title="$t('system.user.list')">
           <template #toolbar-tools>
-            <Button
-              v-if="can('create') && can('assign-role')"
-              type="primary"
-              @click="onCreate"
-            >
+            <Button v-if="can('create')" type="primary" @click="onCreate">
               <Plus class="size-5" />
               {{ $t('ui.actionTitle.create', [$t('system.user.entity')]) }}
             </Button>
