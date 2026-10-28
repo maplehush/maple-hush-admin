@@ -3,17 +3,25 @@ ARG MAVEN_IMAGE=maven:3.9.9-eclipse-temurin-21
 ARG JAVA_IMAGE=eclipse-temurin:21-jre-jammy
 
 FROM ${MAVEN_IMAGE} AS build
+ARG MAVEN_MIRROR_URL=https://repo.maven.apache.org/maven2
 WORKDIR /workspace
 COPY . .
 # T17 verifies tests separately; image builds need no database or credentials.
-RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -DskipTests package \
+RUN --mount=type=cache,target=/root/.m2 mvn -s deploy/maven-settings.xml -B -ntp -DskipTests package \
     && mkdir /out \
     && set -- admin-system-start/target/*.jar \
     && test "$#" -eq 1 \
     && cp "$1" /out/app.jar
 
 FROM ${JAVA_IMAGE} AS runtime
-RUN apt-get update \
+ARG UBUNTU_APT_MIRROR=
+# The selected Java image is Ubuntu Jammy. Keep security.ubuntu.com unchanged.
+RUN if [ -n "$UBUNTU_APT_MIRROR" ]; then \
+        printf '%s' "$UBUNTU_APT_MIRROR" | grep -Eq '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._/-]*)?/?$' \
+        && sed -i -E "s|https?://([a-z0-9-]+\\.)?archive.ubuntu.com/ubuntu/?|${UBUNTU_APT_MIRROR%/}/|g" /etc/apt/sources.list \
+        || exit 1; \
+    fi \
+    && apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 app \

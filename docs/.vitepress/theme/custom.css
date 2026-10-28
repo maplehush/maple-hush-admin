@@ -1,0 +1,52 @@
+:root {
+  --vp-font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+    sans-serif;
+}
+
+.VPContent.is-home .VPHome {
+  /* 缩小默认主题的首页底部留白，避免内容已完整时仍被空白撑出滚动条。 */
+  margin-bottom: 48px;
+}
+
+/* 首页保持紧凑的阅读入口，文章页继续使用主题的正文宽度与右侧目录。 */
+@media (min-width: 960px) {
+  .VPHome .VPHero {
+    padding-top: calc(var(--vp-nav-height) + 48px);
+    padding-bottom: 48px;
+  }
+}
+
+.VPHome .VPFeature .box {
+  padding: 24px;
+}
+
+.VPHome .VPFeature .title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.vp-doc {
+  line-height: 1.8;
+}
+
+/* 技术栈表在小屏保持可读列宽，由 VitePress 表格容器横向滚动。 */
+.technology-page .vp-doc th:first-child,
+.technology-page .vp-doc td:first-child {
+  min-width: 8em;
+}
+
+.technology-page .vp-doc th:nth-child(2),
+.technology-page .vp-doc td:nth-child(2) {
+  min-width: 5em;
+}
+
+.technology-page .vp-doc th:nth-child(3),
+.technology-page .vp-doc td:nth-child(3) {
+  min-width: 7em;
+}
+
+.technology-page .vp-doc th:last-child,
+.technology-page .vp-doc td:last-child {
+  min-width: 16em;
+}

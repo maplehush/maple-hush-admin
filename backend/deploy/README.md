@@ -1,5 +1,7 @@
 # 后端独立部署
 
+2026-10-27 构建源参数：`MAVEN_MIRROR_URL` 默认为官方 Central，通过 `deploy/maven-settings.xml` 与 Dockerfile 的 `mvn -s` 生效；可选择实际可达的公共镜像。`UBUNTU_APT_MIRROR` 留空保留当前 Java Jammy 镜像的 apt 源，非空时仅替换普通归档源。`DOCKERFILE_FRONTEND` 用于指定已核对的 Dockerfile 解析器镜像。以上均为公开配置，不传私有仓库密码。空白 Ubuntu 的安装、源配置和正式上线顺序见[正式服务器手册](../../开发文档/部署运维/正式服务器Docker部署.md)。
+
 本目录配置三个服务：MySQL 8.4、Redis 7.4、Java 21 后端。请在 `backend/` 执行命令，需要 Linux 容器引擎和 Docker Compose 2.20+。本机没有 Docker 引擎时只能核对配置，不能据此认定容器部署通过。任务实际验证见 [T18 记录](../../开发文档/任务拆解/T18-后端镜像与独立部署.md)。
 
 ## 开发环境首次启动

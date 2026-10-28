@@ -1,32 +1,58 @@
-# 本地 Linux 虚拟机 Docker 部署
+# 本地 Linux 服务器 Docker 部署
 
-本文用于学习和演练，不作为正式服务器上线记录。共用仓库根目录的 Compose，运行 `frontend/backend/mysql/redis` 四个服务，不复制另一套服务配置。正式部署见[正式服务器 Docker 部署](./正式服务器Docker部署.md)，底层参数说明见[统一部署说明](../../deploy/README.md)。
+本文整理 2026-10-26～27 的实际演练，把 Ubuntu 虚拟机作为一台正常 Linux 服务器使用，不另建带 `_vm` 后缀的配置，不引入 Jenkins。正式生产环境的差异见[正式服务器部署](./正式服务器Docker部署.md)，共用参数见[根部署说明](../../deploy/README.md)，备份与恢复见[运维手册](../../deploy/ops/README.md)。部署操作不写入任务拆解。
 
-## 1. 当前准备状态
+## 1. 先看全流程
 
-**2026-10-27 补充**：本次实际仓库位置是 `/opt/maple-hush/maple-hush-admin`，Compose 项目名、数据库和 Redis 前缀统一使用 `maple_hush_admin`。四服务已由用户日志确认 healthy，宿主机 Nginx 已配置 `http://192.168.100.128` 入口。原前端在 IP + HTTP 下依赖 randomUUID/Web Locks，导致登录 API 成功后页面报错，不能将该状态记为登录验收通过。兼容修复见[记录](../2026-10-27-HTTP登录兼容修复.md)，需拉取修复并重建前端后，在服务器重新验收。以下初版示例中的学习环境命名和 SSH 入口是另一种隔离演练示例，不是本机实际部署参数。
+```text
+本地开发、测试 → 提交并推送 GitHub
+                         ↓
+服务器手动拉取代码 → Docker 构建前后端 → Compose 更新容器并等待健康
+                         ↓
+浏览器 → 宿主机 Nginx :80 → 127.0.0.1:8090
+                         ↓
+                  frontend 容器 Nginx
+                         ↓ /api
+                   backend:8080
+                         ↓
+                  mysql:3306 / redis:6379
+```
 
-2026-10-26 用户提供的终端结果：
+宿主机 Nginx 管理公开入口，前端容器 Nginx 提供静态页面并转发 API。后端、MySQL、Redis 不映射宿主机端口。以后增加项目，可各自绑定不同的回环端口，由宿主机 Nginx 按域名分发。
 
-| 项目 | 实际信息 |
+### 已部署后的日常更新
+
+以下不是首次安装命令；已有 `.env`、密钥、数据库和 Nginx 时使用：
+
+```sh
+cd /opt/maple-hush/maple-hush-admin
+git pull --ff-only
+docker compose up -d --build --wait --wait-timeout 600
+docker compose ps
+```
+
+每条命令成功后再执行下一条。正式数据更新前先备份，方法见第 8 节。部署不需要先删除或停止容器，也不自动拉取代码。
+
+## 2. 本次环境与实际状态
+
+| 项目 | 本次使用值 |
 | --- | --- |
-| 系统 | Ubuntu 22.04.5 LTS（jammy） |
-| 主机地址 | `192.168.100.128`、`192.168.100.129`；待确认 Windows 可达地址及网卡用途 |
-| Docker CLI | 29.0.2 |
-| Docker Compose | v5.3.1，高于本项目最低要求 |
-| 当前终端账号 | root |
-| 待检查 | Docker 引擎运行情况、CPU/内存/磁盘、架构、SSH 连通性及代码来源 |
+| 系统 | Ubuntu 22.04.5 LTS，x86_64 |
+| 资源 | 8 核、约 25 GiB 内存；根分区约 39 GiB，曾因磁盘占用高而清理 |
+| Docker / Compose | Docker 29.0.2 / Compose v5.3.1 |
+| 对外地址 | `http://192.168.100.128/` |
+| 仓库目录 | `/opt/maple-hush/maple-hush-admin` |
+| Compose 项目名 | `maple_hush_admin` |
+| 前端宿主机监听 | `127.0.0.1:8090` |
+| 公开入口 | 宿主机 Nginx，80 端口 |
 
-Docker 和 Compose 已安装，无需重复安装。版本输出不能代替 `docker info`、配置解析或容器运行验证。本文部署命令尚未在该虚拟机执行，不能视为部署通过。后文的用户名、地址和路径示例需换成实际值；已使用 root 操作的学习环境可将代码放在 `/root/apps/maple-hush-admin`。
+本次已收到四服务 healthy、IP 入口可访问的终端或截图证据；用户在 2026-10-27 反馈“可以了”。登录兼容与角色选填修复已提交。期间出现过 BuildKit `frontend grpc server closed unexpectedly`，未收到最终处理日志，本文不把某项操作写成它的已确认根因或修复方案。真实公网 HTTPS、OSS、异机恢复和生产发布仍需分别验收。
 
-建议首次从 **4 核 CPU、8 GiB 内存、60 GiB 可用磁盘**开始演练；这是包含源码构建的起点建议，不是已经测得的最低要求。虚拟机需能访问镜像仓库、Maven 和前端包源；源码构建会比只运行镜像消耗更多内存和磁盘。
-
-在 Linux 终端查看：
+首次准备时查看：
 
 ```sh
 cat /etc/os-release
 uname -m
-hostname -I
 free -h
 df -h /
 docker --version
@@ -34,138 +60,252 @@ docker compose version
 docker info
 ```
 
-需要 Linux Docker Engine、BuildKit 及支持本项目 `include`、`!reset`、`!override` 的 Compose，版本至少 **2.24.4**。使用 `docker compose`，不要使用旧的 `docker-compose` V1。若未安装，先根据实际发行版选择 [Docker 官方安装步骤](https://docs.docker.com/engine/install/)和 [Compose 插件安装步骤](https://docs.docker.com/compose/install/linux/)，不要混用 apt、yum 命令。
+本次 Docker 和 Compose 已安装；新服务器按实际系统使用 [Docker 安装说明](https://docs.docker.com/engine/install/ubuntu/)及 [Compose 安装说明](https://docs.docker.com/compose/install/linux/)。项目最低要求 Compose 2.24.4+，使用 `docker compose` 命令。宿主机不需要另外安装 Java、Maven、Node 或 pnpm，它们在构建镜像内运行。
 
-以下 Linux 命令假设当前部署账号可执行 Docker。若系统要求 sudo，应为整套操作统一安排权限，不用 `chmod 777` 解决权限问题。
+## 3. 首次拉取仓库
 
-## 2. Windows 如何访问虚拟机
-
-建议先采用 **SSH 端口转发**：
-
-```text
-Windows 浏览器 localhost:8090
-  → SSH 隧道
-  → Linux 127.0.0.1:8090
-  → frontend → backend → MySQL / Redis
-```
-
-当前 Compose 的前端只绑定 Linux 的 `127.0.0.1:8090`，所以直接打开 `http://虚拟机IP:8090` 不通是预期行为。此方式无需改 Compose，也无需向局域网开放数据库或应用端口。
-
-先确认 Windows 可通过 SSH 连接虚拟机。桥接或可直达的 NAT 网络使用实际虚拟机 IP；若 NAT 需要端口映射，先把宿主机端口映射到虚拟机 SSH 的 22 端口。再在 **Windows PowerShell** 执行，替换用户名和地址：
-
-```powershell
-ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:8090:127.0.0.1:8090 deployuser@192.168.1.100
-```
-
-这个窗口保持打开。若 SSH 使用其他端口，加入 `-p 实际端口`。Windows 的 8090 被占用时，可将左侧监听端口改为 18090，并同步修改下文浏览器 Origin 和访问地址。
-
-## 3. 把要测试的代码放进 Linux
-
-在 Linux 准备一个部署目录，例如 `~/apps/maple-hush-admin`。可用 Git 拉取，或通过 SFTP 上传完整产品仓库。
-
-注意：**远程 Git 拉取只能拿到已推送提交**。Windows 上尚未提交、推送的代码不会出现在虚拟机；演练前先确定要测试的提交或源码快照。SFTP 上传时不带 Windows 的 `node_modules`、`target`、`.idea`、`.env` 和现有密钥目录；保留两个 Dockerfile、部署脚本、锁文件以及完整构建源码。Linux 镜像构建阶段会准备自己的依赖，不要求在 Linux 宿主机另装 Java、Maven、Node。
-
-以下命令都在 **Linux 产品仓库根目录**执行，不能在外层 `maple-hush-workspace` 或前后端子目录执行：
+以下克隆命令只执行一次，目标目录必须尚不存在：
 
 ```sh
-cd ~/apps/maple-hush-admin
-git rev-parse HEAD
-test -f docker-compose.yml
-test -f backend/Dockerfile
-test -f frontend/scripts/deploy/Dockerfile
+mkdir -p /opt/maple-hush
+cd /opt/maple-hush
+git clone --branch main https://github.com/maplehush/maple-hush-admin.git
+cd /opt/maple-hush/maple-hush-admin
+git branch --show-current
+git log -1 --oneline
 ```
 
-若上传的源码不含 Git 元数据，另行记录源码来源和时间，不把 `git rev-parse` 失败当部署故障。
+本地修改必须先提交并推送，服务器才能拉到。`--ff-only` 只允许快进更新，分支分叉时会停止，不会在服务器自动生成合并提交。若拉取失败，先检查 `git status --short`，保留并核对服务器改动，不直接使用 `reset --hard`。
 
-## 4. 创建学习环境配置
+所有后续 Compose 命令均在产品仓库根执行，不进入 `frontend/` 或 `backend/` 启动另一套项目。
 
-首次没有 `.env` 时执行；已有文件先检查，不覆盖：
+## 4. 首次配置环境和密钥
+
+### 4.1 准备文件
 
 ```sh
+cd /opt/maple-hush/maple-hush-admin
 test -e .env || cp .env.example .env
 sh backend/deploy/init-dev-secrets.sh ./secrets
 ```
 
-脚本仅供开发：MySQL/Redis 使用项目允许的开发密码，JWT 随机生成，已有密钥不覆盖；OSS 三个凭据文件可暂为空，头像和文件上传在未配置真实 OSS 时不会成功。不要上传真实密钥到聊天或 Git。
+初始化脚本只用于这次 dev 演练：保留已有文件，MySQL/Redis 使用项目约定的开发密码，JWT 随机生成。OSS 凭据文件可先为空，未配置时上传不可用。生产不能使用该脚本生成开发密码。
 
-编辑根 `.env`，关键参数如下，其他参数保留模板值：
+### 4.2 编辑根 `.env`
+
+以复制后的模板为基础，配置以下参数，其他镜像与 OSS 公开参数保留模板或填写实际值：
 
 ```dotenv
-COMPOSE_PROJECT_NAME=maple_hush_vm_lab
+COMPOSE_PROJECT_NAME=maple_hush_admin
 SPRING_PROFILES_ACTIVE=dev
+FRONTEND_IMAGE_TAG=local
+BACKEND_IMAGE_TAG=local
 FRONTEND_HTTP_PORT=8090
-MYSQL_DATABASE=maple_hush_vm_lab
+BACKEND_MEMORY_LIMIT=1g
+BUILD_NETWORK=host
+
+MYSQL_DATABASE=maple_hush_admin
 MYSQL_USERNAME=maple_hush
 REDIS_DATABASE=0
-REDIS_KEY_PREFIX=maple_hush_vm_lab
+REDIS_KEY_PREFIX=maple_hush_admin
 SECRETS_DIR=./secrets
+
 ADMIN_BOOTSTRAP_ENABLED=true
 ADMIN_BOOTSTRAP_USERNAME=admin
-AUTH_ALLOWED_ORIGINS=http://localhost:8090,http://127.0.0.1:8090
+AUTH_ALLOWED_ORIGINS=http://192.168.100.128
+NPM_REGISTRY=https://registry.npmmirror.com
 ```
 
-这里只用于**独立学习空库**；MySQL 容器不会连接 Windows 正在开发的数据库。首次引导成功后关闭 `ADMIN_BOOTSTRAP_ENABLED`。不要通过删除数据卷反复初始化管理员。
+已有实例必须保留原项目名、库名和密钥目录，不照抄示例更名。改变 `COMPOSE_PROJECT_NAME` 会选择另一组容器、网络和数据卷。
 
-学习版先使用 dev + HTTP + SSH 隧道验证整套流程。它不能验收生产 Secure Cookie、真实 TLS 或公网访问；需要进一步模拟生产时使用独立 test 配置和可信 HTTPS，参照正式部署文档。
+- `ADMIN_BOOTSTRAP_ENABLED=true` 仅用于首次空库创建管理员；已有账号和密码保存在数据库，不在每次启动时重新初始化。
+- `.env` 只保存非秘密配置；数据库/Redis 密码、JWT 和 OSS Key 由 `secrets/` 文件提供，具体七个文件见[生产密钥表](./正式服务器Docker部署.md#7-创建生产文件密钥)。不提交 `.env` 和真实密钥。
+- 本次已验证默认容器网络访问 npm 超时，而宿主机网络可达，因此使用 `BUILD_NETWORK=host`。它只影响 Docker 构建期间的 RUN 指令，运行容器仍使用 Compose 网络。联网正常的其他机器可用 `default`。
+- npm/pnpm 已支持镜像源；Docker 镜像源属于 Docker daemon 配置。宿主机的 npm、Maven、apt 源不会自动进入构建镜像。按实际问题配置，当前项目无需配置 pip、Go、Gradle 源。
+- 只有通过 SSH 隧道从 Windows 打开 `http://localhost:8090` 时，才额外把该 Origin 加入允许列表。Windows 的 localhost 指 Windows 自己，不是 Linux 的回环地址。
 
-## 5. 构建并启动
+修改已初始化 MySQL 的 secret 文件不会自动修改数据库中已有密码。修改引导开关或重建前后端容器也不会重置后台账号密码。
 
-2026-10-27 补充：当前服务器已验证默认容器网络访问 npm 超时、使用宿主机网络可成功。在根 `.env` 增加 `BUILD_NETWORK=host`，拉取支持该参数的版本后，统一使用下面的整体部署命令，无需分别执行两个 `docker build`。此参数只影响构建网络，不改变运行时容器网络。宿主机换源也不会自动改变构建镜像内部的依赖源。
+## 5. 一条命令构建并启动
+
+先检查配置，不会创建容器：
 
 ```sh
 docker compose config --quiet
 docker compose config --services
+```
+
+应只有 `mysql`、`redis`、`backend`、`frontend` 四服务。确认后执行：
+
+```sh
+docker compose up -d --build --wait --wait-timeout 600
+```
+
+| 参数 | 含义 |
+| --- | --- |
+| `-d` | 容器在后台运行 |
+| `--build` | 启动前构建应用镜像，复用有效缓存，把本次源码改动编入镜像 |
+| `--wait` | 等待服务运行或健康检查通过 |
+| `--wait-timeout 600` | 服务健康等待最多 600 秒，不是镜像构建超时 |
+
+Compose 构建前后端、准备 MySQL/Redis、按需更新容器；后端等待两个依赖健康。数据库数据保留在 MySQL 命名卷中。普通更新不会执行删库或清空卷。
+
+`docker compose up -d` 不保证重新构建已有镜像；`restart` 只重启旧容器。仅在已经单独构建好镜像或回退到旧镜像时使用 `--no-build`。镜像内 Maven 使用 `-DskipTests`，部署构建成功不能代替提交前的测试。
+
+检查应用：
+
+```sh
+docker compose ps
+curl -fsS http://127.0.0.1:8090/healthz
+curl -fsS http://127.0.0.1:8090/api/auth/captcha
+docker compose exec backend curl -fsS http://127.0.0.1:8080/actuator/health/readiness
+```
+
+`frontend` healthy 仅代表静态服务可用，仍需核对后端 readiness 和实际登录。
+
+## 6. 首次配置宿主机 Nginx
+
+本次使用 Ubuntu 的 `sites-available` / `sites-enabled` 站点管理方式：前者保存配置，后者通过软链接启用。若已安装并配置好，后续只更新项目时不重复安装。
+
+在首次独立准备的 Ubuntu 服务器上：
+
+```sh
+sudo apt-get update
+sudo apt-get install -y nginx
+sudo systemctl enable --now nginx
+```
+
+编辑 `/etc/nginx/sites-available/maple-hush-admin`，内容如下：
+
+```nginx
+server {
+    listen 80;
+    server_name 192.168.100.128;
+
+    client_max_body_size 3m;
+    access_log /var/log/nginx/maple-hush-admin.access.log;
+    error_log /var/log/nginx/maple-hush-admin.error.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:8090;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+    }
+}
+```
+
+首次启用站点，已有同名链接时跳过第一条，先检查其目标：
+
+```sh
+sudo ln -s /etc/nginx/sites-available/maple-hush-admin /etc/nginx/sites-enabled/maple-hush-admin
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+`nginx -t` 失败时先修正配置，不执行 reload。仅编辑文件不会自动让当前 Nginx 生效。该站点按 IP 精确匹配，不必为了它覆盖其他项目或把所有站点都改成 default_server。
+
+分层验证：
+
+```sh
+curl -I http://127.0.0.1:8090
+curl -I -H 'Host: 192.168.100.128' http://127.0.0.1
+curl -I http://192.168.100.128
+```
+
+浏览器打开 `http://192.168.100.128/`。如果还是欢迎页，核对 Host、软链接、`nginx -T` 和是否已 reload；不能只凭 HTTP 200 判断命中了项目页面。直接访问 `http://192.168.100.128:8090` 不通是回环端口配置的预期行为。
+
+以后新增项目，为各项目分配独立项目名和回环端口，再增加对应站点；有域名后用不同 `server_name` 区分，同一个 IP 的同一个入口不能同时作为多个项目首页。
+
+## 7. 首次登录与验收
+
+1. 获取新验证码，使用初始管理员 `admin/12345678` 登录；仅限新空库首次引导，已有实例使用实际密码。
+2. 完成首次改密并重新登录；账号和新密码哈希持久化到 MySQL。
+3. 检查首页、菜单、用户/角色管理、一次新增或编辑、退出后重新登录。
+4. 本轮新增用户角色可选；无角色账号首次改密后只能进入基础工作台。实际可见行为须与服务器构建的版本对应。
+5. 将 `.env` 中 `ADMIN_BOOTSTRAP_ENABLED` 改为 `false`，应用配置：
+
+```sh
+docker compose up -d --wait --wait-timeout 600
+```
+
+首次引导开关不是密码重置开关。密码恢复按[离线超管恢复](../../deploy/ops/README.md#5-唯一超级管理员离线恢复)处理，不通过删卷或反复重建账号解决。
+
+IP + HTTP 登录兼容修复见[实施记录](../2026-10-27-HTTP登录兼容修复.md)。更新后关闭旧标签页，重新打开入口并强制刷新；服务端登录成功但页面仍报错时检查浏览器 Console 及后续请求，不直接认定密码错误。
+
+当前产品网关没有转发 `/doc.html`、`/v3/api-docs`，不能把后端内部端口或文档地址误认为公开入口。真实 OSS 上传、持久化重建与完整会话刷新验收应单独记录，未执行的项目不能写为通过。
+
+## 8. 日常更新、重启和备份
+
+### 整体更新
+
+先把开发机代码测试、提交并推送。服务器仍手动拉取；有需要保留的业务数据时，先执行备份：
+
+```sh
+cd /opt/maple-hush/maple-hush-admin
+bash deploy/ops/backup-mysql.sh "/opt/maple-hush/backups/maple-hush-$(date +%Y%m%d-%H%M%S).sql"
+git pull --ff-only
 docker compose up -d --build --wait --wait-timeout 600
 docker compose ps
 ```
 
-服务清单应为 `mysql`、`redis`、`backend`、`frontend`。首次构建会下载依赖，耗时取决于网络和虚拟机资源；镜像构建中的 Maven 使用 `-DskipTests`，构建成功不等于单元测试通过。
+备份失败先处理，不继续升级。备份脚本同时生成校验值、元数据和镜像记录，详细恢复过程见[运维手册](../../deploy/ops/README.md)。正式发布还应保留旧镜像及配置，便于应用回退。
 
-若失败，先检查日志和磁盘，不重复删卷：
+### 只更新一个服务
+
+```sh
+# 同一项目的后端已经运行时，只更新前端
+docker compose up -d --build --no-deps --wait --wait-timeout 600 frontend
+# 更新后端，并检查其 MySQL、Redis 依赖
+docker compose up -d --build --wait --wait-timeout 600 backend
+```
+
+### 只重启现有容器
+
+```sh
+docker compose restart backend frontend
+```
+
+只重启不会编译新代码，也不会读取改动后的容器环境；修改源码用 `--build` 更新，修改 `.env` 用 `up -d` 应用。项目更新通常不需要重启宿主机 Nginx，只有站点配置变化时才检查并 reload。
+
+停止服务可用 `docker compose stop`，再次启动可用 `docker compose up -d --wait --wait-timeout 600`。`docker compose down` 会移除容器和项目网络但默认保留命名卷；不要附加 `-v`。
+
+## 9. 常见问题与查看命令
+
+| 现象 | 优先检查 |
+| --- | --- |
+| 修改代码后页面没变化 | 代码是否已推送、服务器是否拉取正确提交、是否重新 build、是否更新容器及刷新浏览器 |
+| npm/Corepack 下载超时 | 构建容器能否访问 registry、`NPM_REGISTRY` 与 `BUILD_NETWORK` 是否生效 |
+| `frontend grpc server closed unexpectedly` | BuildKit Dockerfile 解析器异常；这里的 frontend 不是业务前端，查看构建器及 Docker daemon 日志 |
+| MySQL unhealthy | 查看 MySQL 日志和 healthcheck、初始化进度、磁盘及 secret；不直接删除卷 |
+| `8090 address already in use` | 用 ss 查监听进程及 Docker 容器映射，排查遗留 docker-proxy，不误杀其他项目 |
+| Nginx 欢迎页或 502 | 站点 Host/启用/reload、回环 8090、backend readiness，按层定位 |
+| 后台密码不正确 | 数据库已有密码不会随 secret 或引导开关改变；与 MySQL 账号密码区分 |
+| Navicat 连不上服务器 3306 | MySQL 默认没有发布端口；可先使用下面的容器内客户端，不开放公网数据库端口 |
 
 ```sh
 docker compose logs --tail 100 mysql redis backend frontend
-docker compose exec backend curl -fsS http://127.0.0.1:8080/actuator/health/readiness
-curl -fsS http://127.0.0.1:8090/healthz
-curl -fsS http://127.0.0.1:8090/api/auth/captcha
+docker buildx ls
+journalctl -u docker --since '10 minutes ago' --no-pager -n 120
+ss -lntp | grep -E ':(80|443|8090)\b'
+df -h /
+docker system df
 ```
 
-`frontend` healthy 只代表静态服务可用；后端 readiness、验证码及浏览器登录也必须正常。`50300 DEPENDENCY_UNAVAILABLE` 优先排查 MySQL/Redis 连通性和凭据；502 优先检查 backend 是否就绪及代理日志。脚本报 `\r` 等错误时检查是否以 CRLF 上传，保留 Linux shell 文件的 LF 换行。
+不要把 `BUILD_NETWORK=host` 当作 gRPC 解析器异常的通用修复，也不盲目重装 Docker。不要使用 `docker system prune --volumes` 等清理命令来处理数据库或构建故障。
 
-## 6. 浏览器验收
-
-保持 Windows SSH 隧道开启，访问 `http://localhost:8090`：
-
-1. 获取验证码，使用学习空库初始账号 `admin/12345678` 登录。
-2. 按提示完成首次改密，重新登录。
-3. 检查菜单、列表、一次新增/编辑和权限页面。
-4. 检查令牌刷新、退出、重新登录；未接 OSS 时不把上传失败当四服务部署失败，但明确保留上传未验收项。
-5. 将根 `.env` 的 `ADMIN_BOOTSTRAP_ENABLED` 改为 `false`，执行 `docker compose up -d --wait --wait-timeout 300`。
-
-默认前端网关没有转发 `/doc.html` 或 `/v3/api-docs`，不要假设 `localhost:8090/doc.html` 就是 Knife4j。需要在线文档时另外安排仅限本机的后端调试入口；当前根模式没有发布后端端口。
-
-## 7. 练习重建和日常命令
-
-记录一条测试数据后，在同一目录、相同 `.env` 和项目名下重建，再检查该数据仍在：
+在容器内进入 MySQL，凭据从已挂载文件读取，不在命令中写明文：
 
 ```sh
-docker compose up -d --force-recreate --wait --wait-timeout 300
-docker compose ps
+docker compose exec mysql sh -ec 'export MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"; exec mysql --user=root "$MYSQL_DATABASE"'
 ```
 
-```sh
-# 更新前端；要求同一项目的后端已运行
-docker compose up -d --build --wait frontend
-# 更新后端及其依赖
-docker compose up -d --build --wait backend
-# 停止并保留卷
-docker compose down
-# 再次启动
-docker compose up -d --wait
-```
+Navicat 图形化访问需另外设计回环端口加 SSH 隧道；当前默认配置不提供 `服务器IP:3306` 直连。
 
-不要加 `down -v`，不要运行清理全部卷的命令。虚拟机快照可以辅助学习，但正式数据备份恢复仍需按[运维说明](../../deploy/ops/README.md)执行。
+## 10. 换成真实服务器时
 
-## 8. 记录实际结果
-
-在本文之外的本地演练日志记录：Linux 版本、Docker/Compose 版本、资源、源码提交、启动结果、登录/刷新/退出、重建后数据、失败原因及处理。不要记录密码、令牌。尚未执行的项目明确写“未验证”，不把本地虚拟机结果当正式服务器上线成功。
+继续使用相同仓库、Compose、目录组织和更新方式，按[正式服务器手册](./正式服务器Docker部署.md)补齐独立生产凭据、prod 配置、域名与 HTTPS、备份与恢复、磁盘和服务监控。当前 HTTP + dev 是本地演练状态，不作为生产公网部署方案。

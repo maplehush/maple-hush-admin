@@ -2,6 +2,8 @@
 
 按场景操作：[本地 Linux 虚拟机演练](../开发文档/部署运维/本地Linux虚拟机Docker部署.md)、[正式服务器部署](../开发文档/部署运维/正式服务器Docker部署.md)。本页保留共用 Compose 参数及实现说明；历史“本机没有 Docker 引擎”的记录指此前 Windows 验证环境，不代表新虚拟机的实际状态。
 
+2026-10-27 已按本次实际演练整理两份手册。用户反馈本地 Ubuntu 基本部署可用；当前入口为宿主机 Nginx → 回环 8090 → 四服务 Compose。首次准备、日常拉取与一条命令部署、首次改密和故障排查见本地手册，真实公网生产状态仍以正式服务器验收为准。
+
 入口是仓库根的 [docker-compose.yml](../docker-compose.yml)。需要 Linux 容器引擎与 **Docker Compose 2.24.4+**：使用 include 加载前后端配置，并通过覆盖文件调整根模式路径及端口；不复制维护四份服务定义。最终模型只有 `frontend/backend/mysql/redis` 四服务。
 
 ## 开发环境第一次启动
@@ -53,7 +55,9 @@ docker compose up -d --build --wait --wait-timeout 600
 
 ## 变量、路径和网络
 
-- 前端构建使用 `NPM_REGISTRY`（默认 `https://registry.npmmirror.com`），同时传给 Corepack 下载 pnpm 和 pnpm 安装依赖。仅设置仓库 `.npmrc` 不会改变 Corepack 下载地址；官方 npm 源可达时可以改为 `https://registry.npmjs.org`。保留 packageManager 固定版本、锁文件及完整性校验，不通过关闭 TLS 或签名检查解决超时。宿主机配置的 npm、Maven、apt 源不自动进入 Docker 构建容器；Maven 当前使用镜像内的默认配置，只有确认下载失败或缓慢后才针对构建环境配置，不为本项目统一改动 pip/Go/Gradle 源。
+- 前端构建使用 `NPM_REGISTRY`（默认 `https://registry.npmmirror.com`），同时传给 Corepack 下载 pnpm 和 pnpm 安装依赖。仅设置仓库 `.npmrc` 不会改变 Corepack 下载地址；官方 npm 源可达时可以改为 `https://registry.npmjs.org`。保留 packageManager 固定版本、锁文件及完整性校验，不通过关闭 TLS 或签名检查解决超时。宿主机配置的 npm、Maven、apt 源不自动进入 Docker 构建容器，不为本项目统一改动 pip/Go/Gradle 源。
+- 后端构建使用 `MAVEN_MIRROR_URL`（默认官方 `https://repo.maven.apache.org/maven2`），通过 `backend/deploy/maven-settings.xml` 与 Dockerfile 的 `mvn -s` 应用到 Central；可换为实际可达的公共代理。`UBUNTU_APT_MIRROR` 可为 Java Jammy 运行镜像选择普通 Ubuntu 归档镜像，留空保留原源，security 源不改。URL 不接受凭据；私有依赖认证需另外使用 build secret。
+- `DOCKERFILE_FRONTEND` 默认 `docker/dockerfile:1`，通过两份 Compose 的 `BUILDKIT_SYNTAX` build argument 生效。生产改用企业镜像仓库时，也必须同步这张 Dockerfile 解析器镜像。Ubuntu apt、Docker CE 安装源、容器镜像供应、npm/Maven、证书从全新服务器准备的完整步骤见[正式服务器手册](../开发文档/部署运维/正式服务器Docker部署.md)。
 
 - 根 `.env` 只含非秘密参数，`SECRETS_DIR` 相对仓库根（也可用受控绝对目录）。后端仍用原七个密钥文件和 configtree；不把密码/Key 放进根 `.env`、构建参数或前端环境。
 - include 显式指定仓库根为路径基准，用 [backend-root.yml](./compose/backend-root.yml) 修正后端构建与 Redis 脚本路径，用 [frontend-root.yml](./compose/frontend-root.yml) 修正前端构建目录。固定 [include.env](./compose/include.env) 仅提供非秘密默认值，不读取子目录 `.env`；根环境有优先级。
@@ -86,6 +90,8 @@ docker compose up -d --build --wait --wait-timeout 600
 若共享同一 Bucket，至少使用独立对象前缀，公开域名仍与 Bucket 匹配；RAM 凭据权限按环境限制。命名空间隔离不能替代对象权限和实际数据测试。每套 MySQL 都有自己的容器和卷，相同库名也不会自动共享数据；仍建议显式区分库名以减少人工误操作。
 
 ## 本轮验证和后续验收
+
+以下保留 T20 初版在 Windows 上的验证边界；本地 Ubuntu 的后续反馈与操作记录已归入上方部署手册，不把历史缺少引擎的状态套用到用户当前服务器。
 
 目前已通过三个目录配置解析、四服务结构/路径/端口核对和两套配置的隔离检查。本机仍没有 Docker 引擎，整体、frontend、backend 三种启动尝试都因找不到 docker_engine 失败；不等同于命令演练通过。T18/T19 的本地功能证据继续有效，不能替代根模式容器验收。
 

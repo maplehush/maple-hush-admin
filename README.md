@@ -1,5 +1,7 @@
 # Maple Hush Admin
 
+2026-10-27 部署入口：用户已反馈本地 Ubuntu 基本部署可用；完整操作见[本地 Linux 服务器部署手册](./开发文档/部署运维/本地Linux虚拟机Docker部署.md)，未来生产步骤见[正式服务器部署手册](./开发文档/部署运维/正式服务器Docker部署.md)。两份手册包含首次准备、宿主机 Nginx、首次改密、备份和日常一条命令更新，不引入 Jenkins。下方 T18～T21 的说明保留历史验收边界，不能据本地演练视为正式公网发布通过。
+
 项目 CI 位于 [根工作流](./.github/workflows/ci.yml)，覆盖 main/develop 的提交及 PR；检查范围与最新优化见[前后端优化记录](./开发文档/任务拆解/2026-10-22-前后端优化.md)。
 
 基于 Vben `apps/web-antdv-next` 与 Spring Boot 的企业内部后台，已实现登录认证、动态权限、个人资料，以及用户、角色、菜单、部门、字典和日志管理。当前按[T0～T21 任务索引](./开发文档/任务拆解/README.md)逐项搭建，已完成 T0～T16；T17 本地回归通过，真实 OSS 验收由用户执行。T18 已交付后端镜像与独立 Compose 配置，本地 Jar/文件密钥及依赖故障验证通过；本机缺少 Docker 引擎，容器构建、卷持久化、镜像检查与公网 TLS 验收待补。T19 已交付前端镜像与独立 Compose 配置，目标构建、原生 Nginx 与浏览器匿名冒烟通过；容器及公网 HTTPS 完整认证验收待补。T20 已交付根目录四服务 include 编排，三目录配置与两套隔离参数解析通过；本机无 Docker 引擎，整体/单侧容器与 HTTPS 验收待补。T21 已完成本机原生隔离演练并交付运维脚本/说明；Docker 容器、异机恢复、镜像回退及公网验收仍待补，尚未上线。
@@ -12,6 +14,7 @@
 | --- | --- |
 | [`frontend/`](./frontend/) | Vben workspace；目标应用 `apps/web-antdv-next` |
 | [`backend/`](./backend/) | Java 21 / Spring Boot 4.1.1 四模块后端，接入 MySQL、Redis 和 Flyway |
+| [`docs/`](./docs/README.md) | 独立 VitePress 中英文使用文档；部署与发版栏目待完善，进入 docs 后执行 pnpm dev |
 | [`开发文档/`](./开发文档/index.md) | 架构、规范、接口契约与任务卡 |
 
 前端来源：官方 `vbenjs/vue-vben-admin`，T01 用户新提供的提交 `151d80f9e5fb63f2ed8a8c432e1adf2eba253271`；上游 `origin`、迁入过程和验证结果见[T0 记录](./开发文档/任务拆解/T0-前后端原始工程准备.md#本次执行记录)与[T01 记录](./开发文档/任务拆解/T01-建仓迁入工程与前端基线.md#本次执行记录)。后端来自 Spring Initializr 官方生成的 `com.maplehush:admin-system-start` 空工程。
@@ -25,7 +28,7 @@ pnpm install --frozen-lockfile
 pnpm dev:antdv-next
 ```
 
-前端启动、类型检查和构建命令见[前端说明](./frontend/README.md)。目标应用已关闭 Nitro mock，通过同源 `/api` 接入真实后端，本地联调需同时启动后端并准备 MySQL、Redis。真实 OSS 上传由用户后续测试，部署尚未完成。
+前端启动、类型检查和构建命令见[前端说明](./frontend/README.md)。目标应用已关闭 Nitro mock，通过同源 `/api` 接入真实后端，本地联调需同时启动后端并准备 MySQL、Redis。真实 OSS 上传由用户后续测试，正式生产验收尚未完成。
 
 ## 文档
 

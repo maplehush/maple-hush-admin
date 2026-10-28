@@ -58,6 +58,9 @@ services:
       args:
         MAVEN_IMAGE: ${MAVEN_IMAGE:-maven:3.9.9-eclipse-temurin-21}
         JAVA_IMAGE: ${JAVA_IMAGE:-eclipse-temurin:21-jre-jammy}
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://repo.maven.apache.org/maven2}
+        UBUNTU_APT_MIRROR: ${UBUNTU_APT_MIRROR:-}
+        BUILDKIT_SYNTAX: ${DOCKERFILE_FRONTEND:-docker/dockerfile:1}
     init: true
     restart: unless-stopped
     read_only: true

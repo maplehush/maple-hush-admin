@@ -1,5 +1,7 @@
 # 前端独立部署
 
+2026-10-27 补充：`DOCKERFILE_FRONTEND` 默认 `docker/dockerfile:1`，由 Compose 以 `BUILDKIT_SYNTAX` build argument 传入；使用企业镜像仓库时，可连同 Node/Nginx 基础镜像切换到实际已同步的解析器地址。全新服务器的安装和镜像来源见[正式服务器手册](../../../开发文档/部署运维/正式服务器Docker部署.md)。
+
 在 `frontend/` 执行命令。此配置只启动 `frontend`，需要已经运行且容器可访问的后端；不会启动数据库、Redis 或后端。镜像使用 Node 22 和仓库固定 pnpm 11.16.0 构建 `@vben/web-antdv-next`，运行层只保留目标静态产物、Nginx 和启动脚本。Playground、docs、mock、源码及构建工具不进入运行层；完整 workspace 依赖在构建阶段保留。
 
 ## 首次启动

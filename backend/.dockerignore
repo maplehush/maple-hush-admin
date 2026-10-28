@@ -1,6 +1,9 @@
 # Only build inputs enter the context; local config/secrets/tests/outputs do not.
 **
 !pom.xml
+!deploy/
+deploy/**
+!deploy/maven-settings.xml
 !admin-base-core/
 !admin-base-core/pom.xml
 !admin-base-core/src/
