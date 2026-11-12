@@ -6,6 +6,7 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'Maple Hush Admin',
   description: 'Maple Hush Admin 项目文档',
+  head: [['link', { rel: 'icon', type: 'image/x-icon', href: '/images/favicon.ico' }]],
   srcExclude: ['README.md'],
   locales: {
     root: { label: '简体中文', lang: 'zh-CN' },
@@ -43,6 +44,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
+    logo: { src: '/images/logo.webp', alt: 'Maple Hush Admin' },
     nav,
     sidebar,
     i18nRouting: true,

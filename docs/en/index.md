@@ -5,6 +5,9 @@ hero:
   name: Maple Hush Admin
   text: Documentation
   tagline: Start locally, understand the project, and build new features with clear conventions.
+  image:
+    src: /images/vben-logo.webp
+    alt: Maple Hush Admin
   actions:
     - theme: brand
       text: Get Started

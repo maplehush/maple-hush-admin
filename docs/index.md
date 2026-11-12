@@ -5,6 +5,9 @@ hero:
   name: Maple Hush Admin
   text: 项目文档
   tagline: 从本地启动到二次开发，了解项目、接入业务、遵循规范。
+  image:
+    src: /images/logo.webp
+    alt: Maple Hush Admin
   actions:
     - theme: brand
       text: 快速开始
