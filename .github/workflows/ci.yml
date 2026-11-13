@@ -91,7 +91,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           current_tag="${GITHUB_REF_NAME}"
           version_regex='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)
 
@@ -149,44 +148,20 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
-
           if [[ ! "${current_tag}" =~ ${version_regex} ]]; then
             echo "::error title=Invalid release tag::Tag '${current_tag}' must use vMAJOR.MINOR.PATCH, for example v1.5.7."
             exit 1
           fi
-
-          # 拉取完整 Tag 历史，确保比较范围完整。
           git fetch --force --tags origin
-
-          python3 - "${current_tag}" <<'PY'
-          import re
-          import subprocess
-          import sys
-
-          pattern = re.compile(r"^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
-          current_tag = sys.argv[1]
-          current_version = tuple(map(int, pattern.fullmatch(current_tag).groups()))
-          tags = subprocess.check_output(["git", "tag", "--list", "v*"], text=True).splitlines()
-
-          versions = []
-          for tag in tags:
-              if tag == current_tag:
-                  continue
-              match = pattern.fullmatch(tag)
-              if match:
-                  versions.append((tuple(map(int, match.groups())), tag))
-
-          if not versions:
-              print(f"First stable release accepted: {current_tag}")
-              raise SystemExit(0)
-
-          latest_version, latest_tag = max(versions, key=lambda item: item[0])
-          if current_version <= latest_version:
-              print(f"::error title=Release version rejected::{current_tag} must be greater than {latest_tag}.")
-              raise SystemExit(1)
-
-          print(f"Release version accepted: {current_tag} > {latest_tag}")
-          PY
+          latest_tag="$(git tag --list 'v*' | grep -E "${version_regex}" | grep -Fxv "${current_tag}" | sort -V | tail -n 1 || true)"
+          if [[ -n "${latest_tag}" ]]; then
+            highest_tag="$(printf '%s\n%s\n' "${latest_tag}" "${current_tag}" | sort -V | tail -n 1)"
+            if [[ "${highest_tag}" != "${current_tag}" ]]; then
+              echo "::error title=Release version rejected::${current_tag} must be greater than the latest existing stable release ${latest_tag}."
+              exit 1
+            fi
+          fi
+          echo "Release version accepted: ${current_tag}"
       # 配置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
