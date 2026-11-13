@@ -115,7 +115,9 @@ git switch -c hotfix/1.2.1 v1.2.0
 
 已推送的版本 tag 视为不可变，不移动、不覆盖、不强推。误打标签时先协调发布状态，再按团队流程撤销远程和本地标签并发布新的版本号。当前仓库还没有历史发布 tag；此规则不自动给现有提交指定首发版本。
 
-**当前 CI 是代码检查。** 它没有交付测试环境自动部署、生产审批发布或镜像晋级，也没有单独的 docs 构建任务。不能据此认定仓库已配置强制分支保护或完整发布流水线。
+CI 已配置镜像构建和推送：main、develop 及 `v*` tag 的 push 在前后端检查全部成功后，构建 linux/amd64 镜像并推送到腾讯云 `ccr.ccs.tencentyun.com/maplehush`；PR 只检查代码。运行前在仓库 Actions Secrets 配置 `TCR_USERNAME` 和 `TCR_PASSWORD`，并准备 `maple-hush-admin-frontend`、`maple-hush-admin-backend` 两个镜像仓库。配置交付不代表已通过远程构建或推送验证。
+
+当前尚未交付测试环境自动部署、生产审批发布或镜像晋级，也没有单独的 docs 构建任务。不能据此认定仓库已配置强制分支保护或完整发布流水线。
 
 ## 合并前说明
 

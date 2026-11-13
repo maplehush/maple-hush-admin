@@ -81,7 +81,9 @@ The current `.github/workflows/ci.yml` runs the following checks on pushes and p
 
 The frontend also provides `lefthook.yml`: pre-commit checks include Oxlint, Oxfmt, ESLint, Stylelint, and type checking; commit-msg uses commitlint. Whether hooks run depends on local installation and activation. Do not assume they are active on every machine that clones the repository. Automatic fixes may change staged files; inspect the results before committing.
 
-**Current CI performs code checks.** It does not deliver automatic test-environment deployment, production approval releases, or image promotion, and has no separate docs build job. It therefore does not establish that mandatory branch protection or a complete release pipeline is configured.
+CI now includes image building and pushing: pushes to main, develop, and `v*` tags build linux/amd64 images and push them to Tencent Cloud at `ccr.ccs.tencentyun.com/maplehush` after both frontend and backend checks succeed. Pull requests only run code checks. Before running this job, configure repository Actions Secrets `TCR_USERNAME` and `TCR_PASSWORD`, and prepare the `maple-hush-admin-frontend` and `maple-hush-admin-backend` image repositories. Delivering this configuration does not mean remote builds or pushes have been verified.
+
+Automatic test-environment deployment, production approval releases, and image promotion are still pending, and there is no separate docs build job. This does not establish that mandatory branch protection or a complete release pipeline is configured.
 
 ## Before merging
 
