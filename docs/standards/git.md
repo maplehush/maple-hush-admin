@@ -81,6 +81,40 @@ git commit -m "docs: clarify API response conventions"
 
 前端还提供 `lefthook.yml`：提交前包含 Oxlint、Oxfmt、ESLint、Stylelint 和类型检查；commit-msg 使用 commitlint。钩子是否运行取决于本地是否安装并启用，不能认为每台克隆仓库的电脑都已生效。自动修复可能修改暂存文件，提交前查看结果。
 
+## 版本 Tag
+
+正式版本使用语义化版本号，格式为 `v主版本.次版本.修订号`，例如 `v1.2.0`。发布 tag 只从已验收的 `main` 创建；先更新并确认 `main` 工作区干净，再打附注 tag，写明版本及简短发布说明：
+
+```sh
+git switch main
+git pull --ff-only origin main
+git status
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push origin v1.2.0
+```
+
+创建前检查版本号是否已被占用：
+
+```sh
+git tag --list --sort=-version:refname
+git ls-remote --tags origin
+```
+
+发布后可查看标签详情，或检出标签对应的只读版本：
+
+```sh
+git show v1.2.0
+git switch --detach v1.2.0
+```
+
+需要基于该版本继续开发时，从 tag 新建分支，不要直接在 detached HEAD 上提交：
+
+```sh
+git switch -c hotfix/1.2.1 v1.2.0
+```
+
+已推送的版本 tag 视为不可变，不移动、不覆盖、不强推。误打标签时先协调发布状态，再按团队流程撤销远程和本地标签并发布新的版本号。当前仓库还没有历史发布 tag；此规则不自动给现有提交指定首发版本。
+
 **当前 CI 是代码检查。** 它没有交付测试环境自动部署、生产审批发布或镜像晋级，也没有单独的 docs 构建任务。不能据此认定仓库已配置强制分支保护或完整发布流水线。
 
 ## 合并前说明
