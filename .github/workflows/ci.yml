@@ -84,6 +84,128 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 正式版本 Tag 必须符合 SemVer，且高于仓库已有的最高正式版本。
+      # 校验失败会终止当前 Job，后续 Docker 构建和 TCR 推送不会执行。
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_tag="${GITHUB_REF_NAME}"
+          version_regex='^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)
+      # 登录腾讯云 TCR
+      - name: Login to Tencent Cloud TCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.TCR_REGISTRY }}
+          username: ${{ secrets.TCR_USERNAME }}
+          password: ${{ secrets.TCR_PASSWORD }}
+
+      # 生成前端镜像标签
+      - name: Docker Metadata - Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.TCR_REGISTRY }}/${{ env.TCR_NAMESPACE }}/maple-hush-admin-frontend
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=tag
+
+      # 生成后端镜像标签
+      - name: Docker Metadata - Backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.TCR_REGISTRY }}/${{ env.TCR_NAMESPACE }}/maple-hush-admin-backend
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=tag
+
+      # 构建并推送前端镜像
+      - name: Build and Push Frontend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/scripts/deploy/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      # 构建并推送后端镜像
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+
+          if [[ ! "${current_tag}" =~ ${version_regex} ]]; then
+            echo "::error title=Invalid release tag::Tag '${current_tag}' must use vMAJOR.MINOR.PATCH, for example v1.5.7."
+            exit 1
+          fi
+
+          # 获取远程仓库的全部 Tag，避免只比较到浅克隆中的少量版本。
+          git fetch --force --tags origin
+
+          python3 - "${current_tag}" <<'PY'
+          import re
+          import subprocess
+          import sys
+
+          pattern = re.compile(r"^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+
+          def parse_version(tag):
+              match = pattern.fullmatch(tag)
+              if not match:
+                  return None
+              return tuple(int(part) for part in match.groups())
+
+          current_tag = sys.argv[1]
+          current_version = parse_version(current_tag)
+
+          tags = subprocess.check_output(
+              ["git", "tag", "--list", "v*"],
+              text=True,
+          ).splitlines()
+
+          existing_versions = []
+          for tag in tags:
+              if tag == current_tag:
+                  continue
+              version = parse_version(tag)
+              if version is not None:
+                  existing_versions.append((version, tag))
+
+          if not existing_versions:
+              print(f"First stable release: {current_tag}")
+              sys.exit(0)
+
+          latest_version, latest_tag = max(
+              existing_versions,
+              key=lambda item: item[0],
+          )
+
+          if current_version <= latest_version:
+              print(
+                  f"::error title=Release version rejected::"
+                  f"{current_tag} must be greater than the latest existing "
+                  f"stable release {latest_tag}."
+              )
+              sys.exit(1)
+
+          print(f"Release version accepted: {current_tag} > {latest_tag}")
+          PY
+
       # 配置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
