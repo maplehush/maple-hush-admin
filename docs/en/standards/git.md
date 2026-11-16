@@ -85,6 +85,8 @@ CI now includes image building and pushing: pushes to main, develop, and `v*` ta
 
 Automatic test-environment deployment, production approval releases, and image promotion are still pending, and there is no separate docs build job. This does not establish that mandatory branch protection or a complete release pipeline is configured.
 
+After Checkout, the image job validates release tags: each must follow `vX.Y.Z` (three nonnegative integers without leading zeros) and exceed the highest existing release tag after excluding itself. Branch pushes skip this step. The highest version can be rerun, but rerunning an older version fails once a higher tag exists. Comparison includes Git tags whose image publication failed. Validation failure blocks subsequent image builds and pushes; it does not prevent or delete remote tags, verify main ancestry, or provide atomic ordering for concurrent releases.
+
 ## Before merging
 
 A commit or merge request description should include at least:

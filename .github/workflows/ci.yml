@@ -84,6 +84,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 正式版本校验：只限制镜像发布，不阻止 Git Tag 创建。
+      - name: Validate Release Version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          VERSION_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+
+          # 1. 检查版本格式
+          if [[ ! "$CURRENT_TAG" =~ $VERSION_REGEX ]]; then
+            echo "::error::版本格式错误：$CURRENT_TAG"
+            exit 1
+          fi
+
+          # 2. 获取所有 Git Tag
+          git fetch --tags origin
+
+          # 3. 找到已有的最高正式版本，排除当前 Tag 以支持重跑
+          LATEST_TAG=$(
+            git tag --list 'v*' |
+            grep -E "$VERSION_REGEX" |
+            grep -Fxv "$CURRENT_TAG" |
+            sort -V |
+            tail -n 1 || true
+          )
+
+          # 4. 检查版本是否递增
+          if [[ -n "$LATEST_TAG" ]]; then
+            HIGHEST_TAG=$(
+              printf '%s\n%s\n' "$LATEST_TAG" "$CURRENT_TAG" |
+              sort -V |
+              tail -n 1
+            )
+
+            if [[ "$HIGHEST_TAG" != "$CURRENT_TAG" ]]; then
+              echo "::error::版本必须高于最新正式版本 $LATEST_TAG"
+              exit 1
+            fi
+          fi
+
+          echo "版本校验通过：$CURRENT_TAG"
+
       # 配置 Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
