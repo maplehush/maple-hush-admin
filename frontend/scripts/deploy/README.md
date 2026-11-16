@@ -32,6 +32,8 @@ Windows 可在 PowerShell 使用 `Copy-Item .env.example .env`，其余 Docker �
 
 `BACKEND_UPSTREAM` 与 `TRUSTED_PROXY_CIDR` 是运行时配置，启动时只替换模板中的这两个占位符，保留 `$uri` 等 Nginx 变量；修改后执行 `docker compose up -d --wait` 重建容器即可，无需重编前端。T20 补充：Nginx 通过 Compose 网络内的 Docker DNS（127.0.0.11）解析运行时上游，缓存有效期 5 秒；后端重建换 IP 后可重新解析，避免前端持续使用旧地址。独立模式的外部域名同样通过 Docker DNS 解析；该配置面向 Compose 容器网络，不能直接套给宿主机原生 Nginx。
 
+2026-11-16 简化：移除只用于暂存后端地址的 `$backend_origin` 中间变量，`proxy_pass` 直接拼接后端 Origin 与 `$request_uri`。启动后仍含 Nginx 内置请求变量，保留原路径、查询参数及运行时 DNS 解析；客户端地址与协议信任判断变量继续使用，不需要在 `.env` 中另行定义。
+
 ## 构建、健康与升级
 
 ```sh

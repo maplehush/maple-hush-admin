@@ -1,0 +1,174 @@
+# 服务器只拉取并运行镜像；启动前填写同目录的 .env。
+# ${变量:?提示} 表示必填，${变量:-默认值} 表示可省略并使用默认值。
+
+# ==============================
+# Compose 项目名称
+# 已有部署保持名称不变，用于标识这套容器和网络。
+# ==============================
+name: ${COMPOSE_PROJECT_NAME:-maplehush}
+
+# ==============================
+# 统一日志配置
+# 每个容器单个日志文件最大 10MB，最多保留 3 个文件。
+# 各服务通过 logging: *default-logging 复用。
+# ==============================
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  # ==============================
+  # MySQL 数据库
+  # 仅供容器网络访问，不发布宿主机端口。
+  # ==============================
+  mysql:
+    image: mysql:8.4
+    # 异常退出自动重启，手动停止后保持停止。
+    restart: unless-stopped
+    # 首次初始化数据目录时创建数据库和应用账号。
+    # 已有数据目录不会因为修改这些变量而自动更改账号或密码。
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
+      MYSQL_USER: ${MYSQL_USER:?MYSQL_USER is required}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+    # 数据落在宿主机 DATA_ROOT/mysql，重建容器不删除该目录。
+    volumes:
+      - ${DATA_ROOT:?DATA_ROOT is required}/mysql:/var/lib/mysql
+    networks:
+      - app-network
+    # 使用应用账号访问目标数据库，执行 SELECT 1 验证连接可用。
+    # $$ 将美元符号留给容器内 shell，避免在 Compose 阶段展开。
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'MYSQL_PWD="$${MYSQL_PASSWORD}" mysql --protocol=TCP --host=127.0.0.1 --user="$${MYSQL_USER}" --database="$${MYSQL_DATABASE}" --connect-timeout=3 --execute="SELECT 1" >/dev/null 2>&1'
+      interval: 10s       # 每 10 秒检查一次。
+      timeout: 5s        # 单次检查超时。
+      retries: 10        # 初始化宽限期后，连续失败 10 次标记为不健康。
+      start_period: 120s # 初始化宽限期，期间检查失败不计入重试次数。
+    logging: *default-logging
+
+  # ==============================
+  # Redis 缓存
+  # 启用密码认证和 AOF 持久化，不发布宿主机端口。
+  # ==============================
+  redis:
+    image: redis:7.4
+    restart: unless-stopped
+    # --appendonly yes 开启 AOF；--requirepass 设置访问密码。
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    # 健康检查从容器环境读取相同密码。
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    # AOF 等 Redis 数据文件保存在宿主机 DATA_ROOT/redis。
+    volumes:
+      - ${DATA_ROOT:?DATA_ROOT is required}/redis:/data
+    networks:
+      - app-network
+    # 认证后发送 PING，响应必须为 PONG。
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -qx PONG'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    logging: *default-logging
+
+  # ==============================
+  # Spring Boot 后端
+  # 独立使用 BACKEND_VERSION 选择镜像版本。
+  # ==============================
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}:${BACKEND_VERSION:?BACKEND_VERSION is required}
+    restart: unless-stopped
+    # 限制整个后端容器内存为 1 GiB，不只是 Java 堆。
+    mem_limit: 1g
+    environment:
+      # 加载公共 application.yml 和生产 application-prod.yml。
+      SPRING_PROFILES_ACTIVE: prod
+
+      # MySQL 配置：mysql 是同一网络内的服务名称。
+      # .env 使用 MYSQL_USER，后端 YAML 读取 MYSQL_USERNAME。
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required}
+      MYSQL_USERNAME: ${MYSQL_USER:?MYSQL_USER is required}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+
+      # Redis 配置：redis 是服务名称；键前缀用于区分应用和环境。
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: "${REDIS_DATABASE:-0}"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:?REDIS_KEY_PREFIX is required}
+
+      # 认证配置：JWT 签名密钥，以及浏览器允许访问的站点 Origin。
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?AUTH_JWT_SECRET is required}
+      AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?AUTH_ALLOWED_ORIGINS is required}
+
+      # 首次管理员初始化：仅空库且开关为 true 时创建，默认账号 admin。
+      ADMIN_BOOTSTRAP_ENABLED: "${ADMIN_BOOTSTRAP_ENABLED:-false}"
+      ADMIN_BOOTSTRAP_USERNAME: "${ADMIN_BOOTSTRAP_USERNAME:-admin}"
+
+      # OSS 图片存储：未配置凭据时上传不可用；长期 AccessKey 的 Token 留空。
+      OSS_REGION: "${OSS_REGION:-oss-cn-beijing}"
+      OSS_BUCKET: "${OSS_BUCKET:-maple-hush}"
+      OSS_PUBLIC_DOMAIN: "${OSS_PUBLIC_DOMAIN:-https://maple-hush.oss-cn-beijing.aliyuncs.com}"
+      OSS_OBJECT_PREFIX: "${OSS_OBJECT_PREFIX:-vben-admin-img/}"
+      OSS_ACCESS_KEY_ID: "${OSS_ACCESS_KEY_ID:-}"
+      OSS_ACCESS_KEY_SECRET: "${OSS_ACCESS_KEY_SECRET:-}"
+      OSS_SECURITY_TOKEN: "${OSS_SECURITY_TOKEN:-}"
+
+    # 仅宿主机可通过 127.0.0.1:8080 直接访问后端。
+    ports:
+      - "127.0.0.1:8080:8080"
+
+    # 等待 MySQL、Redis 健康检查通过后启动后端。
+    # 后端镜像自身带有 readiness 健康检查，无须在这里重复定义。
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    logging: *default-logging
+
+  # ==============================
+  # Vue 前端（由容器内 Nginx 提供静态页面及 API 代理）
+  # 独立使用 FRONTEND_VERSION 选择镜像版本。
+  # ==============================
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}:${FRONTEND_VERSION:?FRONTEND_VERSION is required}
+    restart: unless-stopped
+    environment:
+      # /api 请求转发到后端容器；启动脚本要求此值，末尾不带 /api。
+      BACKEND_UPSTREAM: http://backend:8080
+
+    # 宿主机回环端口默认 8081，映射到前端容器的 8080（不是 80）。
+    # 域名的 80/443 由宿主机 Nginx 监听，再转发至此宿主机端口。
+    # 镜像自带 /healthz 健康检查，只证明静态服务正常，不代表后端就绪。
+    ports:
+      - "127.0.0.1:${FRONTEND_HTTP_PORT:-8081}:8080"
+    networks:
+      - app-network
+    logging: *default-logging
+
+# ==============================
+# Docker 网络
+# 四个服务加入同一网络，通过 mysql、redis、backend 等服务名互访。
+# ==============================
+networks:
+  app-network:
+    driver: bridge
