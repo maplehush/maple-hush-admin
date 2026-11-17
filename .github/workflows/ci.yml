@@ -100,12 +100,15 @@ jobs:
             exit 1
           fi
 
-          # 2. 获取所有 Git Tag
-          git fetch --tags origin
+          # 2. 只读取远程 Tag，避免浅克隆检出与附注 Tag 的本地引用冲突。
+          # 单独读取：远程访问失败时立即停止，不按“没有历史版本”处理。
+          REMOTE_TAG_REFS=$(git ls-remote --tags --refs origin)
 
           # 3. 找到已有的最高正式版本，排除当前 Tag 以支持重跑
           LATEST_TAG=$(
-            git tag --list 'v*' |
+            printf '%s\n' "$REMOTE_TAG_REFS" |
+            cut -f 2 |
+            sed 's#^refs/tags/##' |
             grep -E "$VERSION_REGEX" |
             grep -Fxv "$CURRENT_TAG" |
             sort -V |

@@ -87,6 +87,8 @@ Automatic test-environment deployment, production approval releases, and image p
 
 After Checkout, the image job validates release tags: each must follow `vX.Y.Z` (three nonnegative integers without leading zeros) and exceed the highest existing release tag after excluding itself. Branch pushes skip this step. The highest version can be rerun, but rerunning an older version fails once a higher tag exists. Comparison includes Git tags whose image publication failed. Validation failure blocks subsequent image builds and pushes; it does not prevent or delete remote tags, verify main ancestry, or provide atomic ordering for concurrent releases.
 
+Validation reads remote tag names directly with `git ls-remote --tags --refs origin`, without fetching or overwriting local tags. This avoids conflicts between a shallow tag checkout and the remote annotated tag object. Failure to access the remote stops validation instead of allowing it as a first release.
+
 ## Before merging
 
 A commit or merge request description should include at least:
