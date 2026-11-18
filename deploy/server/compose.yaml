@@ -155,9 +155,11 @@ services:
     environment:
       # /api 请求转发到后端容器；启动脚本要求此值，末尾不带 /api。
       BACKEND_UPSTREAM: http://backend:8080
+      # 填写经核实的网关容器 IP 或可信网段。
+      TRUSTED_PROXY_CIDR: ${TRUSTED_PROXY_CIDR:?TRUSTED_PROXY_CIDR is required}
 
     # 宿主机回环端口默认 8081，映射到前端容器的 8080（不是 80）。
-    # 域名的 80/443 由宿主机 Nginx 监听，再转发至此宿主机端口。
+    # 容器网关通过 frontend:8080 访问；此宿主机端口保留用于本机排查。
     # 镜像自带 /healthz 健康检查，只证明静态服务正常，不代表后端就绪。
     ports:
       - "127.0.0.1:${FRONTEND_HTTP_PORT:-8081}:8080"
@@ -165,9 +167,34 @@ services:
       - app-network
     logging: *default-logging
 
+  # ==============================
+  # Nginx 网关
+  # 负责域名、HTTPS 和 Certbot 验证入口，通过容器网络访问前端。
+  # ==============================
+  nginx:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      # 临时测试端口，仅服务器本机可访问。
+      # 验证后切换为 "80:80"、"443:443"，先释放宿主机占用的端口。
+      - "127.0.0.1:18080:80"
+      - "127.0.0.1:18443:443"
+    volumes:
+      # 提前放入站点 .conf，参考 nginx/maplehush.conf.example。
+      - /opt/maplehush/nginx/conf.d:/etc/nginx/conf.d:ro
+      # 挂载整个目录，保留 live/ 到 archive/ 的证书符号链接。
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Certbot 在宿主机写入验证文件，网关只读提供 HTTP 访问。
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - frontend
+    networks:
+      - app-network
+    logging: *default-logging
+
 # ==============================
 # Docker 网络
-# 四个服务加入同一网络，通过 mysql、redis、backend 等服务名互访。
+# 五个服务加入同一网络，通过 nginx、frontend、backend 等服务名互访。
 # ==============================
 networks:
   app-network:

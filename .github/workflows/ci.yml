@@ -1,4 +1,4 @@
-name: Project checks
+name: Project checks and production deploy
 
 on:
   push:
@@ -10,64 +10,107 @@ on:
 permissions:
   contents: read
 
+# 普通分支检查允许取消旧任务；
+# 正式版本 Tag 不随意取消，避免中断生产发布。
 concurrency:
-  group: checks-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
+
+  # ==========================================
+  # 1. 前端 CI 检查
+  # ==========================================
   frontend:
+    name: Frontend CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     defaults:
       run:
         working-directory: frontend
+
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
         with:
           node-version-file: frontend/.node-version
-      - uses: pnpm/action-setup@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
         with:
           package_json_file: frontend/package.json
           run_install: false
+
       - name: Locate pnpm store
         id: pnpm-store
         run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v5
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: ${{ runner.os }}-pnpm-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec eslint apps/web-antdv-next/src --quiet
-      - run: pnpm exec oxfmt --check apps/web-antdv-next/src
-      - run: pnpm --filter @vben/web-antdv-next typecheck
-      - run: pnpm exec vitest run apps/web-antdv-next/src --dom
-      - run: pnpm --filter @vben/web-antdv-next build
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm exec eslint apps/web-antdv-next/src --quiet
+
+      - name: Format check
+        run: pnpm exec oxfmt --check apps/web-antdv-next/src
+
+      - name: Type check
+        run: pnpm --filter @vben/web-antdv-next typecheck
+
+      - name: Unit tests
+        run: pnpm exec vitest run apps/web-antdv-next/src --dom
+
+      - name: Build frontend
+        run: pnpm --filter @vben/web-antdv-next build
+
+
+  # ==========================================
+  # 2. 后端 CI 检查
+  # ==========================================
   backend:
+    name: Backend CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     defaults:
       run:
         working-directory: backend
+
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
           cache-dependency-path: backend/**/pom.xml
-      - run: bash mvnw -B -ntp verify
 
+      - name: Maven verify
+        run: bash mvnw -B -ntp verify
+
+
+  # ==========================================
+  # 3. 正式版本构建并推送 TCR
+  # 只有推送 v* 正式版本 Tag 才执行
+  # ==========================================
   build-and-push:
     name: Build and Push Docker Images
 
-    # 只有代码 Push 事件才允许推送镜像。
-    # Pull Request 只进行代码检查，不推送镜像。
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
 
-    # 必须等待前端和后端检查全部成功。
     needs:
       - frontend
       - backend
@@ -75,18 +118,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
+    outputs:
+      version: ${{ steps.validate-release.outputs.version }}
+      frontend_ref: ${{ steps.resolve-images.outputs.frontend_ref }}
+      backend_ref: ${{ steps.resolve-images.outputs.backend_ref }}
+
     env:
       TCR_REGISTRY: ccr.ccs.tencentyun.com
       TCR_NAMESPACE: maplehush
 
     steps:
-      # 获取项目代码
+      # 获取完整 Git 历史，用于检查 Tag 是否属于 main。
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      # 正式版本校验：只限制镜像发布，不阻止 Git Tag 创建。
+      # --------------------------------------
+      # 正式版本校验
+      # --------------------------------------
       - name: Validate Release Version
-        if: startsWith(github.ref, 'refs/tags/')
+        id: validate-release
         shell: bash
         run: |
           set -euo pipefail
@@ -94,29 +146,40 @@ jobs:
           CURRENT_TAG="${GITHUB_REF_NAME}"
           VERSION_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
 
-          # 1. 检查版本格式
+          # 1. 检查版本号格式
           if [[ ! "$CURRENT_TAG" =~ $VERSION_REGEX ]]; then
             echo "::error::版本格式错误：$CURRENT_TAG"
             exit 1
           fi
 
-          # 2. 只读取远程 Tag，避免浅克隆检出与附注 Tag 的本地引用冲突。
-          # 单独读取：远程访问失败时立即停止，不按“没有历史版本”处理。
-          REMOTE_TAG_REFS=$(git ls-remote --tags --refs origin)
+          # 2. 获取 main 分支最新历史
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main
 
-          # 3. 找到已有的最高正式版本，排除当前 Tag 以支持重跑
+          # 3. 确认当前 Tag 指向的代码属于 main 分支
+          if ! git merge-base --is-ancestor \
+            "$GITHUB_SHA" refs/remotes/origin/main; then
+            echo "::error::当前 Tag 对应的代码不属于 main 分支"
+            exit 1
+          fi
+
+          # 4. 获取远程已有正式版本
+          REMOTE_TAG_REFS="$(git ls-remote --tags --refs origin)"
+
           LATEST_TAG=$(
             printf '%s\n' "$REMOTE_TAG_REFS" |
-            cut -f 2 |
-            sed 's#^refs/tags/##' |
+            awk 'NF >= 2 {print $2}' |
+            sed 's#refs/tags/##' |
             grep -E "$VERSION_REGEX" |
             grep -Fxv "$CURRENT_TAG" |
             sort -V |
             tail -n 1 || true
           )
 
-          # 4. 检查版本是否递增
+          # 5. 检查正式版本是否递增
+          # 每次运行都检查；排除当前 tag 已允许最高版本重跑，不按运行次数绕过。
           if [[ -n "$LATEST_TAG" ]]; then
+
             HIGHEST_TAG=$(
               printf '%s\n%s\n' "$LATEST_TAG" "$CURRENT_TAG" |
               sort -V |
@@ -127,15 +190,24 @@ jobs:
               echo "::error::版本必须高于最新正式版本 $LATEST_TAG"
               exit 1
             fi
+
           fi
 
-          echo "版本校验通过：$CURRENT_TAG"
+          echo "正式版本校验通过：$CURRENT_TAG"
 
-      # 配置 Docker Buildx
+          # 将版本号传递给后续 Job
+          echo "version=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+
+
+      # --------------------------------------
+      # Docker 环境
+      # --------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      # --------------------------------------
       # 登录腾讯云 TCR
+      # --------------------------------------
       - name: Login to Tencent Cloud TCR
         uses: docker/login-action@v4
         with:
@@ -143,28 +215,91 @@ jobs:
           username: ${{ secrets.TCR_USERNAME }}
           password: ${{ secrets.TCR_PASSWORD }}
 
-      # 生成前端镜像标签
+      # 安装固定版本的官方 crane，检查版本镜像并读取不可变摘要。
+      - name: Install registry inspection tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=v0.22.1
+          ARCHIVE=go-containerregistry_Linux_x86_64.tar.gz
+          TOOL_DIR=$(mktemp -d)
+          cd "$TOOL_DIR"
+          BASE="https://github.com/google/go-containerregistry/releases/download/$VERSION"
+          curl --fail --location --retry 3 "$BASE/$ARCHIVE" -o "$ARCHIVE"
+          curl --fail --location --retry 3 "$BASE/checksums.txt" -o checksums.txt
+          awk -v file="$ARCHIVE" '$2 == file {print}' checksums.txt > selected.sha256
+          test -s selected.sha256
+          sha256sum --check selected.sha256
+          tar -xzf "$ARCHIVE" crane
+          chmod +x crane
+          echo "$TOOL_DIR" >> "$GITHUB_PATH"
+
+      # 已存在的同版本镜像只能复用，不能在重跑时重新覆盖。
+      # 仅 MANIFEST_UNKNOWN 视为标签不存在，权限/网络等其他错误立即停止。
+      - name: Check existing release images
+        id: existing
+        env:
+          RELEASE_VERSION: ${{ steps.validate-release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          inspect_release() {
+            local component="$1" repository="$2" digest config errors
+            errors=$(mktemp)
+            if digest=$(crane digest "$repository:$RELEASE_VERSION" 2>"$errors"); then
+              [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+              config=$(crane config --platform linux/amd64 "$repository@$digest")
+              if ! jq -e --arg sha "$GITHUB_SHA"                 '.config.Labels["org.opencontainers.image.revision"] == $sha'                 <<< "$config" >/dev/null; then
+                echo "::error::已有 $component 镜像不属于当前提交，拒绝覆盖版本标签"
+                exit 1
+              fi
+              echo "${component}_exists=true" >> "$GITHUB_OUTPUT"
+              echo "${component}_digest=$digest" >> "$GITHUB_OUTPUT"
+            elif grep -Eqi 'MANIFEST_UNKNOWN|manifest unknown' "$errors"; then
+              echo "${component}_exists=false" >> "$GITHUB_OUTPUT"
+            else
+              cat "$errors" >&2
+              echo "::error::无法确认 $component 镜像状态，停止发布"
+              exit 1
+            fi
+            rm -f "$errors"
+          }
+          inspect_release frontend "$TCR_REGISTRY/$TCR_NAMESPACE/maple-hush-admin-frontend"
+          inspect_release backend "$TCR_REGISTRY/$TCR_NAMESPACE/maple-hush-admin-backend"
+
+      # --------------------------------------
+      # 前端镜像标签
+      # 只生成正式版本 Tag，不再生成 SHA 标签
+      # --------------------------------------
       - name: Docker Metadata - Frontend
         id: meta-frontend
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.TCR_REGISTRY }}/${{ env.TCR_NAMESPACE }}/maple-hush-admin-frontend
+          flavor: |
+            latest=false
           tags: |
-            type=sha,prefix=sha-,format=short
             type=ref,event=tag
 
-      # 生成后端镜像标签
+      # --------------------------------------
+      # 后端镜像标签
+      # --------------------------------------
       - name: Docker Metadata - Backend
         id: meta-backend
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.TCR_REGISTRY }}/${{ env.TCR_NAMESPACE }}/maple-hush-admin-backend
+          flavor: |
+            latest=false
           tags: |
-            type=sha,prefix=sha-,format=short
             type=ref,event=tag
 
+      # --------------------------------------
       # 构建并推送前端镜像
+      # --------------------------------------
       - name: Build and Push Frontend Image
+        id: build-frontend
+        if: steps.existing.outputs.frontend_exists != 'true'
         uses: docker/build-push-action@v7
         with:
           context: ./frontend
@@ -176,8 +311,12 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
 
+      # --------------------------------------
       # 构建并推送后端镜像
+      # --------------------------------------
       - name: Build and Push Backend Image
+        id: build-backend
+        if: steps.existing.outputs.backend_exists != 'true'
         uses: docker/build-push-action@v7
         with:
           context: ./backend
@@ -188,3 +327,330 @@ jobs:
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
+
+
+
+      # 新构建取构建输出摘要；重跑取预先校验过的已有摘要。
+      - name: Resolve immutable image references
+        id: resolve-images
+        env:
+          FRONTEND_DIGEST: ${{ steps.build-frontend.outputs.digest || steps.existing.outputs.frontend_digest }}
+          BACKEND_DIGEST: ${{ steps.build-backend.outputs.digest || steps.existing.outputs.backend_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$FRONTEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$BACKEND_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "frontend_ref=$TCR_REGISTRY/$TCR_NAMESPACE/maple-hush-admin-frontend@$FRONTEND_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "backend_ref=$TCR_REGISTRY/$TCR_NAMESPACE/maple-hush-admin-backend@$BACKEND_DIGEST" >> "$GITHUB_OUTPUT"
+
+  # ==========================================
+  # 4. 生产环境自动部署
+  # 只有镜像构建和推送成功后才执行
+  # ==========================================
+  deploy:
+    name: Deploy Production
+
+    needs:
+      - build-and-push
+
+    if: needs.build-and-push.result == 'success'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # 同一时间只允许一个生产发布任务。
+    concurrency:
+      group: maple-hush-production
+      cancel-in-progress: false
+
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+      SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+
+      TCR_USERNAME: ${{ secrets.TCR_USERNAME }}
+      TCR_PASSWORD: ${{ secrets.TCR_PASSWORD }}
+
+      RELEASE_VERSION: ${{ needs.build-and-push.outputs.version }}
+      FRONTEND_REF: ${{ needs.build-and-push.outputs.frontend_ref }}
+      BACKEND_REF: ${{ needs.build-and-push.outputs.backend_ref }}
+      RELEASE_COMMIT: ${{ github.sha }}
+      RELEASE_RUN: ${{ github.run_id }}-${{ github.run_attempt }}
+      # 按真实生产域名核对；用于部署后验证网关到 API 的完整 HTTPS 链路。
+      PRODUCTION_ORIGIN: https://admin.maplehush.cn
+
+    steps:
+
+      # --------------------------------------
+      # 检查 GitHub Secrets
+      # --------------------------------------
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for name in \
+            SERVER_HOST \
+            SERVER_USER \
+            SERVER_SSH_KEY \
+            SERVER_KNOWN_HOSTS \
+            TCR_USERNAME \
+            TCR_PASSWORD \
+            FRONTEND_REF \
+            BACKEND_REF \
+            PRODUCTION_ORIGIN
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::缺少 GitHub Secret：$name"
+              exit 1
+            fi
+          done
+
+      # --------------------------------------
+      # 配置 SSH
+      # --------------------------------------
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          install -m 700 -d "$HOME/.ssh"
+
+          printf '%s\n' "$SERVER_SSH_KEY" \
+            > "$HOME/.ssh/id_ed25519"
+
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" \
+            > "$HOME/.ssh/known_hosts"
+
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          # 确认 known_hosts 中存在目标服务器记录
+          if ! ssh-keygen -F "$SERVER_HOST" \
+            -f "$HOME/.ssh/known_hosts" >/dev/null; then
+            echo "::error::SERVER_KNOWN_HOSTS 中没有 SERVER_HOST 对应的记录"
+            exit 1
+          fi
+
+      # --------------------------------------
+      # 登录服务器并自动部署
+      # --------------------------------------
+      - name: Deploy to Ubuntu Server
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SSH_OPTS=(
+            -i "$HOME/.ssh/id_ed25519"
+            -o IdentitiesOnly=yes
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts"
+            -o ConnectTimeout=15
+          )
+
+          # 1. 登录服务器的 TCR
+          # 使用 sudo 登录，确保凭据保存在 root 的 Docker 配置中。
+          printf -v REMOTE_LOGIN_COMMAND \
+            'sudo -n docker login ccr.ccs.tencentyun.com --username %q --password-stdin' \
+            "$TCR_USERNAME"
+
+          printf '%s' "$TCR_PASSWORD" |
+            ssh "${SSH_OPTS[@]}" \
+              "$SERVER_USER@$SERVER_HOST" \
+              "$REMOTE_LOGIN_COMMAND"
+
+          # 2. 传递已校验的版本、源码提交和镜像摘要。
+          printf -v REMOTE_DEPLOY_COMMAND 'sudo -n bash -s -- %q %q %q %q %q %q' \
+            "$RELEASE_VERSION" "$RELEASE_COMMIT" "$FRONTEND_REF" "$BACKEND_REF" "$RELEASE_RUN" "$PRODUCTION_ORIGIN"
+
+          ssh "${SSH_OPTS[@]}" "$SERVER_USER@$SERVER_HOST" "$REMOTE_DEPLOY_COMMAND" <<'REMOTE'
+          set -Eeuo pipefail
+          umask 077
+
+          RELEASE_VERSION="${1:?缺少版本}"
+          RELEASE_COMMIT="${2:?缺少源码提交}"
+          FRONTEND_REF="${3:?缺少前端摘要引用}"
+          BACKEND_REF="${4:?缺少后端摘要引用}"
+          RELEASE_RUN="${5:?缺少运行编号}"
+          PRODUCTION_ORIGIN="${6:?缺少生产 Origin}"
+          VERSION_REGEX='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          [[ "$RELEASE_VERSION" =~ $VERSION_REGEX ]]
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_RUN" =~ ^[0-9]+-[0-9]+$ ]]
+          [[ "$FRONTEND_REF" =~ ^ccr\.ccs\.tencentyun\.com/maplehush/maple-hush-admin-frontend@sha256:[0-9a-f]{64}$ ]]
+          [[ "$BACKEND_REF" =~ ^ccr\.ccs\.tencentyun\.com/maplehush/maple-hush-admin-backend@sha256:[0-9a-f]{64}$ ]]
+          [[ "$PRODUCTION_ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]]
+
+          APP_ROOT="/opt/maplehush"
+          ENV_FILE="$APP_ROOT/config/.env"
+          COMPOSE_FILE="$APP_ROOT/compose/compose.yaml"
+          # 此文件固定当前运行镜像的摘要，手动运维也必须加载它。
+          IMAGE_LOCK="$APP_ROOT/config/image-lock.yaml"
+          STATE_DIR="$APP_ROOT/releases"
+          SUCCESS_FILE="$STATE_DIR/last-success.tsv"
+          PENDING_FILE="$STATE_DIR/deployment-pending"
+
+          for command in docker flock python3 curl sha256sum; do
+            command -v "$command" >/dev/null
+          done
+          [[ -f "$ENV_FILE" && -f "$COMPOSE_FILE" ]]
+          cd "$APP_ROOT"
+          install -d -m 700 "$STATE_DIR"
+
+          # GitHub 并发组之外，再加服务器文件锁，串行保护版本检查和容器更新。
+          # 人工执行部署时也要遵守同一把锁。
+          exec 9>"$STATE_DIR/production.lock"
+          flock -w 900 9
+          if [[ -e "$PENDING_FILE" ]]; then
+            echo '错误：上次部署未完整完成。请先检查部署记录、容器和数据库，人工处理后再发布。'
+            exit 1
+          fi
+
+          compose() {
+            local args=(--env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+            if [[ -f "$IMAGE_LOCK" ]]; then args+=(-f "$IMAGE_LOCK"); fi
+            env -u FRONTEND_VERSION -u BACKEND_VERSION docker compose "${args[@]}" "$@"
+          }
+
+          # 只读取版本，不 source 整个 .env，不把密码打印到工作流日志。
+          VERSION_VALUES=$(python3 - "$ENV_FILE" <<'PY'
+          import pathlib, re, sys
+          lines = pathlib.Path(sys.argv[1]).read_text().splitlines()
+          for name in ('FRONTEND_VERSION', 'BACKEND_VERSION'):
+              values = [s.split('=', 1)[1] for s in lines if s.startswith(name + '=')]
+              if len(values) != 1 or not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', values[0]):
+                  raise SystemExit('版本变量必须唯一且形如 FRONTEND_VERSION=v1.2.3：' + name)
+              print(values[0])
+          PY
+          )
+          mapfile -t CURRENT_VERSIONS <<< "$VERSION_VALUES"
+
+          # 在拿到服务器锁后比较现有版本，防止旧构建晚完成导致生产降级。
+          for current in "${CURRENT_VERSIONS[@]}"; do
+            highest=$(printf '%s\n%s\n' "$current" "$RELEASE_VERSION" | sort -V | tail -n 1)
+            if [[ "$highest" != "$RELEASE_VERSION" ]]; then
+              echo "错误：生产已配置版本 $current，拒绝部署较低版本 $RELEASE_VERSION"
+              exit 1
+            fi
+          done
+
+          check_running_images() {
+            local service reference cid actual expected
+            for service in frontend backend; do
+              if [[ "$service" == frontend ]]; then reference="$FRONTEND_REF"; else reference="$BACKEND_REF"; fi
+              cid=$(compose ps -q "$service")
+              [[ -n "$cid" ]]
+              actual=$(docker inspect --format '{{.Image}}' "$cid")
+              expected=$(docker image inspect --format '{{.Id}}' "$reference")
+              [[ "$actual" == "$expected" ]]
+              [[ "$(docker inspect --format '{{.State.Running}}' "$cid")" == true ]]
+              [[ "$(docker inspect --format '{{.State.Health.Status}}' "$cid")" == healthy ]]
+            done
+          }
+
+          if [[ -f "$SUCCESS_FILE" ]]; then
+            IFS=$'\t' read -r last_version last_commit last_frontend last_backend < "$SUCCESS_FILE"
+            [[ "$last_version" =~ $VERSION_REGEX ]]
+            # .env 版本被人工改动后，先重新核对生产基线，不自动覆盖现场。
+            [[ "${CURRENT_VERSIONS[0]}" == "$last_version" && "${CURRENT_VERSIONS[1]}" == "$last_version" ]]
+            if [[ "$last_version" == "$RELEASE_VERSION" ]]; then
+              [[ "$last_commit" == "$RELEASE_COMMIT" && "$last_frontend" == "$FRONTEND_REF" && "$last_backend" == "$BACKEND_REF" ]]
+              [[ -f "$IMAGE_LOCK" ]]
+              check_running_images
+              curl --fail --silent --show-error --max-time 20 "$PRODUCTION_ORIGIN/healthz" >/dev/null
+              curl --fail --silent --show-error --max-time 20 "$PRODUCTION_ORIGIN/api/auth/captcha" >/dev/null
+              echo "同一版本、提交、摘要已成功部署且健康：$RELEASE_VERSION，无需重复更新"
+              exit 0
+            fi
+          else
+            # 首次接管自动部署要求新版本高于现有两个版本；不能把同版本未知镜像当成已验证发布。
+            if [[ "${CURRENT_VERSIONS[0]}" == "$RELEASE_VERSION" || "${CURRENT_VERSIONS[1]}" == "$RELEASE_VERSION" ]]; then
+              echo '错误：没有成功发布记录，且待发布版本已存在于 .env。请核对部署基线或使用下一个新版本。'
+              exit 1
+            fi
+          fi
+
+          # 本脚本是已有环境的应用更新入口，不负责首次初始化五个服务。
+          compose config --quiet
+          for service in mysql redis nginx; do
+            cid=$(compose ps -q "$service")
+            [[ -n "$cid" && "$(docker inspect --format '{{.State.Running}}' "$cid")" == true ]]
+          done
+
+          RELEASE_DIR=$(mktemp -d "$STATE_DIR/${RELEASE_VERSION}-${RELEASE_RUN}-XXXXXXXX")
+          UPDATE_STARTED=false
+
+          on_error() {
+            local code="$1"
+            trap - ERR
+            set +e
+            compose ps > "$RELEASE_DIR/failed-status.txt" 2>&1
+            compose logs --no-color --tail=200 frontend backend > "$RELEASE_DIR/failed-containers.log" 2>&1
+            if [[ "$UPDATE_STARTED" == true ]]; then
+              echo "更新阶段失败：保留待处理标记、候选配置和现场。不会假称已回滚。记录：$RELEASE_DIR"
+              echo '请核对数据库迁移兼容性，再决定恢复旧镜像或修复后继续；不得盲目自动恢复数据库。'
+            else
+              echo "更新前失败：原 .env 和镜像锁未修改。记录：$RELEASE_DIR"
+            fi
+            exit "$code"
+          }
+          trap 'on_error $?' ERR
+
+          # 配置备份含敏感值，保存在 root 可访问的 0700 目录中，不上传到 GitHub。
+          install -m 600 "$ENV_FILE" "$RELEASE_DIR/previous.env"
+          if [[ -f "$IMAGE_LOCK" ]]; then install -m 600 "$IMAGE_LOCK" "$RELEASE_DIR/previous-image-lock.yaml"; fi
+          if [[ -f "$SUCCESS_FILE" ]]; then install -m 600 "$SUCCESS_FILE" "$RELEASE_DIR/previous-success.tsv"; fi
+          compose ps > "$RELEASE_DIR/previous-status.txt"
+
+          # 候选配置先在独立文件中完成校验和拉取，失败不修改正式 .env。
+          sed -e "s/^FRONTEND_VERSION=.*/FRONTEND_VERSION=$RELEASE_VERSION/" \
+              -e "s/^BACKEND_VERSION=.*/BACKEND_VERSION=$RELEASE_VERSION/" \
+              "$ENV_FILE" > "$RELEASE_DIR/candidate.env"
+          printf 'services:\n  frontend:\n    image: %s\n  backend:\n    image: %s\n' \
+            "$FRONTEND_REF" "$BACKEND_REF" > "$RELEASE_DIR/candidate-image-lock.yaml"
+
+          candidate_compose() {
+            env -u FRONTEND_VERSION -u BACKEND_VERSION docker compose \
+              --env-file "$RELEASE_DIR/candidate.env" -f "$COMPOSE_FILE" \
+              -f "$RELEASE_DIR/candidate-image-lock.yaml" "$@"
+          }
+          candidate_compose config --quiet
+          candidate_compose pull frontend backend
+
+          # 更新后端前备份数据库；备份失败立即停止，不启动新版本。
+          # 此命令适配当前 Compose 的环境变量密码方式，不依赖 secrets/ 文件。
+          compose exec -T mysql sh -ec '
+            export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
+            exec mysqldump --user=root --single-transaction --routines --events --triggers \
+              --set-gtid-purged=OFF --no-tablespaces --default-character-set=utf8mb4 "$MYSQL_DATABASE"
+          ' > "$RELEASE_DIR/database.sql.partial"
+          test -s "$RELEASE_DIR/database.sql.partial"
+          mv "$RELEASE_DIR/database.sql.partial" "$RELEASE_DIR/database.sql"
+          sha256sum "$RELEASE_DIR/database.sql" > "$RELEASE_DIR/database.sql.sha256"
+
+          # 从此处开始，失败可能已影响容器或数据库，保留标记并阻止后续自动发布。
+          printf '%s\n' "$RELEASE_DIR" > "$PENDING_FILE"
+          UPDATE_STARTED=true
+          install -m 600 "$RELEASE_DIR/candidate.env" "$ENV_FILE.next"
+          mv "$ENV_FILE.next" "$ENV_FILE"
+          install -m 600 "$RELEASE_DIR/candidate-image-lock.yaml" "$IMAGE_LOCK.next"
+          mv "$IMAGE_LOCK.next" "$IMAGE_LOCK"
+
+          # 固定摘要拉取完成后不再根据可变 tag 拉取；数据库、Redis、网关不重建。
+          compose up -d --no-deps --pull never --wait --wait-timeout 600 frontend backend
+          check_running_images
+          curl --fail --silent --show-error --max-time 20 "$PRODUCTION_ORIGIN/healthz" >/dev/null
+          curl --fail --silent --show-error --max-time 20 "$PRODUCTION_ORIGIN/api/auth/captcha" >/dev/null
+
+          # 仅在容器与外部 HTTPS 检查都通过后，原子更新成功发布记录。
+          printf '%s\t%s\t%s\t%s\n' "$RELEASE_VERSION" "$RELEASE_COMMIT" "$FRONTEND_REF" "$BACKEND_REF" > "$SUCCESS_FILE.next"
+          mv "$SUCCESS_FILE.next" "$SUCCESS_FILE"
+          rm -f "$PENDING_FILE"
+          trap - ERR
+          compose ps
+          echo "生产部署成功：$RELEASE_VERSION；记录：$RELEASE_DIR"
+
+          REMOTE

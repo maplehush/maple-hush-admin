@@ -1,0 +1,50 @@
+# 复制到服务器 /opt/maplehush/nginx/conf.d/maplehush.conf。
+# 按实际域名和证书目录替换；HTTPS 配置要求对应证书已存在。
+
+server {
+    listen 80;
+    server_name admin.maplehush.cn;
+
+    # Certbot webroot；续期验证时公网 80 须能访问此路径。
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        try_files $uri =404;
+    }
+
+    # 正式入口使用标准 HTTPS 443；临时测试直接访问 18443。
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name admin.maplehush.cn;
+
+    # 目录名须与服务器 Certbot 实际证书目录一致。
+    ssl_certificate /etc/letsencrypt/live/admin.maplehush.cn/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/admin.maplehush.cn/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 3m;
+
+    # 前端重建换 IP 后，通过 Docker DNS 重新解析服务名。
+    resolver 127.0.0.11 valid=5s ipv6=off;
+    resolver_timeout 2s;
+
+    location / {
+        # 容器间使用服务名，不能填写网关容器自己的 127.0.0.1。
+        proxy_pass http://frontend:8080$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        # 网关直接对外提供入口，覆盖客户端传入的转发头。
+        proxy_set_header Forwarded "";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 60s;
+        proxy_redirect off;
+    }
+}
