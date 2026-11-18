@@ -468,6 +468,19 @@ jobs:
 
           ssh "${SSH_OPTS[@]}" "$SERVER_USER@$SERVER_HOST" "$REMOTE_DEPLOY_COMMAND" <<'REMOTE'
           set -Eeuo pipefail
+          # bash -s 从 SSH 标准输入读取脚本；提前读到 EOF 也可能返回 0。
+          # 只有完整部署或核实同版本健康后，才允许正常退出。
+          DEPLOYMENT_COMPLETED=false
+          verify_completion() {
+            local code=$?
+            trap - EXIT
+            if [[ "$code" == 0 && "$DEPLOYMENT_COMPLETED" != true ]]; then
+              echo '错误：远程脚本提前结束，尚未完成部署验证。' >&2
+              code=1
+            fi
+            exit "$code"
+          }
+          trap verify_completion EXIT
           umask 077
 
           RELEASE_VERSION="${1:?缺少版本}"
@@ -563,6 +576,7 @@ jobs:
               curl --fail --silent --show-error --max-time 20 "$PRODUCTION_ORIGIN/healthz" >/dev/null
               curl --fail --silent --show-error --max-time 20 "$PRODUCTION_ORIGIN/api/auth/captcha" >/dev/null
               echo "同一版本、提交、摘要已成功部署且健康：$RELEASE_VERSION，无需重复更新"
+              DEPLOYMENT_COMPLETED=true
               exit 0
             fi
           else
@@ -622,11 +636,12 @@ jobs:
 
           # 更新后端前备份数据库；备份失败立即停止，不启动新版本。
           # 此命令适配当前 Compose 的环境变量密码方式，不依赖 secrets/ 文件。
-          compose exec -T mysql sh -ec '
+          # -T 只关闭伪终端；另关闭交互输入并隔离 stdin，避免读走后续脚本。
+          compose exec -T --interactive=false mysql sh -ec '
             export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
             exec mysqldump --user=root --single-transaction --routines --events --triggers \
               --set-gtid-purged=OFF --no-tablespaces --default-character-set=utf8mb4 "$MYSQL_DATABASE"
-          ' > "$RELEASE_DIR/database.sql.partial"
+          ' </dev/null > "$RELEASE_DIR/database.sql.partial"
           test -s "$RELEASE_DIR/database.sql.partial"
           mv "$RELEASE_DIR/database.sql.partial" "$RELEASE_DIR/database.sql"
           sha256sum "$RELEASE_DIR/database.sql" > "$RELEASE_DIR/database.sql.sha256"
@@ -652,5 +667,6 @@ jobs:
           trap - ERR
           compose ps
           echo "生产部署成功：$RELEASE_VERSION；记录：$RELEASE_DIR"
+          DEPLOYMENT_COMPLETED=true
 
           REMOTE
