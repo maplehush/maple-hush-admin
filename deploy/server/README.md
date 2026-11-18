@@ -1,6 +1,20 @@
 # 服务器拉取镜像部署
 
+已接入正式 Tag 自动部署的服务器，日常更新按[日常版本发布流程](../../开发文档/部署运维/日常版本发布流程.md)执行。以下同目录命令用于首次手动准备；流水线使用 `/opt/maplehush/config/.env`、`/opt/maplehush/compose/compose.yaml`，生成摘要锁后人工 Compose 操作也需加载 `/opt/maplehush/config/image-lock.yaml`。不要混用下面的早期单侧更新步骤与自动发布状态。
+
 本目录配套当前前后端 Dockerfile 的镜像。CI 构建并推送到 TCR，服务器使用这里的 `compose.yaml` 和自己的 `.env` 拉取运行。生产密码、JWT、OSS 凭据从服务器 `.env` 注入，不需要 `secrets/` 或 `SPRING_CONFIG_IMPORT`。后端现有 `application.yml` / `application-prod.yml` 已能读取这些变量，无须修改应用代码。
+
+## 自动发布脚本与服务器目录
+
+工作流只编排检查、镜像构建和发布；版本检查、镜像复用和 SSH 交付位于 `.github/scripts/`，本目录的 `deploy.sh` 在服务器执行备份、更新与健康验证。发布 Job 检出触发 Tag 对应的提交，每次自动上传该提交的脚本，校验 SHA-256 后保存为 `/opt/maplehush/scripts/deploy-<版本>-<完整提交>-<运行号>-<重跑次数>.sh`，再以 root 执行文件并关闭标准输入。脚本不包含凭据；TCR 密码仍通过独立的标准输入传给 `docker login`。
+
+服务器原有 `/opt/maplehush/compose/compose.yaml`、`config/.env`、`config/image-lock.yaml`、`nginx/` 和 `releases/` 均沿用。`scripts/` 会由发布过程准备为 root 所有、权限 0700，部署脚本也为 0700；原目录内其他文件不删除，不执行未知的旧脚本。上传失败、内容校验失败或部署脚本非零退出都会使发布失败；脚本和发布备份不会自动清理，日常运维需关注磁盘容量。
+
+此次迁移不要求手动复制脚本、不修改服务器 `.env` 或现有 Compose/Nginx、不重建 MySQL/Redis。仍需现有 Secrets 和 SSH 22 端口，部署账号能非交互执行 `sudo docker login` 和 `sudo bash`；仅授权旧的 `bash -s` 精确命令时，需由管理员核对新的 `bash -c` 调用权限。不要为迁移清空已有发布记录或镜像锁。
+
+后续手工修改服务器脚本不会成为下一次发布的来源；应在仓库修改并随新版本发布。服务器部署脚本的参数依次为版本、源码提交、前端摘要引用、后端摘要引用、运行号与重跑次数组成的标识、生产 Origin。通常只通过流水线调用，人工操作前先核对版本、摘要和数据库迁移状态。
+
+本地回归检查：`python .github/tests/test_release_scripts.py`，需要 Python 3、Git 和 Bash；Windows 默认使用 Git for Windows Bash，可通过 `BASH` 环境变量指定其他路径。测试通过临时 Git 仓库和替代 SSH 进程运行，不连接真实 TCR 或服务器；文件校验测试中的提权目录创建使用替代实现，不能代替 Linux 权限与真实部署验收。正式 Tag 的镜像 Job 在构建前也执行同一组检查。
 
 ## 准备
 
@@ -75,6 +89,6 @@ docker compose up -d --no-deps --wait --wait-timeout 600 backend
 
 MySQL 使用 `${DATA_ROOT}/mysql`，Redis 使用 `${DATA_ROOT}/redis` 并开启 AOF。已有实例保持原项目名、数据路径及数据库账号密码；修改 `.env` 不会自动修改已初始化数据库中的密码。本目录的绑定挂载与原根编排的 MySQL 命名卷不同，不会自动迁移旧数据；从旧部署切换须先备份并安排导入，不能直接切目录启动就视为升级成功。
 
-原 [运维脚本](../ops/README.md) 按根编排和文件密钥编写，不能直接当作本目录的备份命令使用。此处只交付镜像运行配置，不包含服务器自动部署、数据迁移或发布回退自动化。
+原 [运维脚本](../ops/README.md) 按根编排和文件密钥编写，不能直接当作本目录的备份命令使用。当前正式 Tag 流水线已包含已有服务器的应用更新和更新前数据库备份；首次部署、数据迁移及失败后的回退仍需单独核查处理。
 
 真实 `.env` 已由仓库 `.gitignore` 排除。配置解析不等于容器已启动；目标服务器的镜像拉取、数据目录可写性、HTTPS、数据库初始化和真实 OSS 上传须在服务器实际验收。
