@@ -16,6 +16,32 @@
 
 本地回归检查：`python .github/tests/test_release_scripts.py`，需要 Python 3、Git 和 Bash；Windows 默认使用 Git for Windows Bash，可通过 `BASH` 环境变量指定其他路径。测试通过临时 Git 仓库和替代 SSH 进程运行，不连接真实 TCR 或服务器；文件校验测试中的提权目录创建使用替代实现，不能代替 Linux 权限与真实部署验收。正式 Tag 的镜像 Job 在构建前也执行同一组检查。
 
+## 人工回退前后端镜像
+
+[rollback.sh](./rollback.sh) 只切换前后端镜像、两个版本变量和成功记录，保留当前密码、域名及其他运行配置；不执行数据库恢复或降级，不重建 MySQL、Redis、Nginx。必须人工确认目标旧代码兼容当前数据库和配置；旧后端启动仍可能触发其自身的迁移或初始化逻辑，健康检查不代替业务验收。
+
+当前流水线不会自动上传或执行 rollback.sh。需要使用时，将仓库中核对过的文件上传到服务器用户可写的临时位置，例如 `/home/ubuntu/rollback.sh`，先检查语法，再通过 sudo 安装到脚本目录：
+
+```sh
+bash -n /home/ubuntu/rollback.sh
+sudo install -d -m 700 -o root -g root /opt/maplehush/scripts
+sudo install -m 700 -o root -g root /home/ubuntu/rollback.sh /opt/maplehush/scripts/rollback.sh
+```
+
+回退 v0.1.7 到它的上一成功版本时，选择 **v0.1.7 升级时生成的发布目录**，脚本读取该目录的 previous-success.tsv；不是选择 v0.1.6 的发布目录。下面目录是占位示例，必须替换为服务器实际路径：
+
+```sh
+sudo bash /opt/maplehush/scripts/rollback.sh \
+  /opt/maplehush/releases/v0.1.7-实际发布目录 \
+  --confirm-compatible
+```
+
+脚本沿用 production.lock；修改生产配置前检查基础服务和发布基线。正常回退要求 `.env` 两个版本与最后成功记录一致；存在 pending 时，要求它指向所选发布目录，且目标上一成功记录与当前最后成功记录四个字段完全一致。缺少历史成功记录的早期发布目录不支持此入口。
+
+准备阶段失败不替换生产配置；更新开始后失败，诊断保存在 releases/rollback-*，pending 保留并指向该回滚现场。此时必须人工核查配置、容器和数据库，不能直接重复执行，也不能删除标记假装恢复。成功后核对 last-success.tsv、前后端运行摘要和健康状态，并人工验证登录及业务功能。
+
+2026-11-19 本地新增：沿用已审阅草稿，未执行真实回滚。语法及隔离检查不能代替服务器恢复演练；未安装 ShellCheck 的环境不记为静态检查通过。
+
 ## 准备
 
 将 [compose.yaml](./compose.yaml) 和 [.env.example](./.env.example) 复制到服务器同一部署目录，例如 `/opt/maplehush/`。以下命令均在该目录执行；没有 `.env` 时再从示例创建，不覆盖已有配置：

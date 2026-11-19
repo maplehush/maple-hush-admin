@@ -102,8 +102,7 @@ class DeploymentCompletionTests(unittest.TestCase):
 
 class ShellSyntaxTests(unittest.TestCase):
     def test_all_release_scripts_are_linux_shell_files(self):
-        scripts = list((ROOT / ".github/scripts").glob("*.sh")) + [ROOT / "deploy/server/deploy.sh"]
-        self.assertEqual(len(scripts), 4)
+        scripts = list((ROOT / ".github/scripts").glob("*.sh")) + list((ROOT / "deploy/server").glob("*.sh"))
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertNotIn(b"\r", script.read_bytes())
